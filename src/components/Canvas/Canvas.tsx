@@ -154,22 +154,17 @@ export function Canvas() {
 
       {displayImage ? (
         <>
-          {/* Entrance animation keyed to filePath — re-mounts on each new image */}
-          <motion.div
+          <motion.canvas
+            ref={canvasRef}
             key={filePath ?? "canvas"}
+            className={styles.canvas}
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
-            style={{ display: "contents" }}
-          >
-            <canvas
-              ref={canvasRef}
-              className={styles.canvas}
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${effectiveScale})`,
-              }}
-            />
-          </motion.div>
+            style={{
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${effectiveScale})`,
+            }}
+          />
           <span className={styles.zoomBadge}>
             {Math.round(effectiveScale * 100)}%
           </span>
