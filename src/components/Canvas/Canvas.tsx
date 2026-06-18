@@ -154,17 +154,21 @@ export function Canvas() {
 
       {displayImage ? (
         <>
-          <motion.canvas
-            ref={canvasRef}
+          <motion.div
             key={filePath ?? "canvas"}
-            className={styles.canvas}
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
-            style={{
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${effectiveScale})`,
-            }}
-          />
+            style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <canvas
+              ref={canvasRef}
+              className={styles.canvas}
+              style={{
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${effectiveScale})`,
+              }}
+            />
+          </motion.div>
           <span className={styles.zoomBadge}>
             {Math.round(effectiveScale * 100)}%
           </span>
