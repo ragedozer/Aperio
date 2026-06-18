@@ -1,0 +1,6 @@
+.app {
+  position: relative;
+  height: 100%;
+  background: var(--surface-base);
+  overflow: hidden;
+}

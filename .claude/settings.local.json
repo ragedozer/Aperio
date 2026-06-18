@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm create *)",
+      "PowerShell(pnpm create tauri-app lumina --template react-ts --manager pnpm --no-open 2>&1)",
+      "PowerShell($env:PATH = \"$env:APPDATA\\\\npm;$env:PATH\"; pnpm --version)",
+      "PowerShell($proc = Start-Process -FilePath \"$env:TEMP\\\\rustup-init.exe\" -ArgumentList \"-y\", \"--default-toolchain\", \"stable\" -Wait -PassThru -NoNewWindow; Write-Output \"Exit code: $\\($proc.ExitCode\\)\")",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(Get-NetTCPConnection -LocalPort 1420 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Write-Output \"Freed port 1420\")",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm add *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :1420)",
+      "Bash(taskkill /PID 26392 /F)",
+      "PowerShell(Stop-Process -Id 26392 -Force)",
+      "Bash(cp \"/mnt/c/Users/Ragen/Downloads/Aperio_Logo.svg\" \"/mnt/c/Users/Ragen/Desktop/Projects/Personal/Photo Editor/src/assets/logo.svg\" 2>/dev/null || echo \"failed\")",
+      "PowerShell(& \"$env:USERPROFILE\\\\.cargo\\\\bin\\\\cargo.exe\" clean --manifest-path \"C:\\\\Users\\\\Ragen\\\\Desktop\\\\Projects\\\\Personal\\\\Photo Editor\\\\src-tauri\\\\Cargo.toml\" 2>&1)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "PowerShell(cd \"C:\\\\Users\\\\Ragen\\\\Desktop\\\\Projects\\\\Personal\\\\Photo Editor - Web\"; $env:CI = \"true\"; pnpm install 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:1420\" -TimeoutSec 5 -UseBasicParsing)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

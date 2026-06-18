@@ -1,0 +1,120 @@
+/* ── Floating toolbar — desktop ───────────────────────── */
+.toolbar {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  /* no background — fully floating */
+}
+
+.logo {
+  height: 67px;
+  width: auto;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.btnRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1.5px solid transparent;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.icon {
+  font-size: 14px;
+  line-height: 1;
+  font-variation-settings: 'wght' 400, 'FILL' 0;
+}
+
+/* Undo / Redo / Reset */
+.btnDefault {
+  background: rgba(53, 53, 53, 0.6);
+  color: var(--btn-stroke);
+  border-color: var(--btn-stroke);
+}
+
+.btnDefault:hover {
+  background: #444;
+  color: #ccc;
+}
+
+/* Open */
+.btnOpen {
+  background: rgba(243, 255, 0, 0.20);
+  color: var(--open-color);
+  border-color: var(--open-color);
+  box-shadow: 0 0 8px rgba(243, 255, 0, 0.3), 0 0 18px rgba(243, 255, 0, 0.12);
+}
+
+.btnOpen:hover {
+  background: rgba(243, 255, 0, 0.25);
+  box-shadow: 0 0 12px rgba(243, 255, 0, 0.5), 0 0 24px rgba(243, 255, 0, 0.22);
+}
+
+/* Export */
+.btnExport {
+  background: rgba(151, 75, 239, 0.15);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(151, 75, 239, 0.3), 0 0 18px rgba(151, 75, 239, 0.12);
+}
+
+.btnExport:hover {
+  background: rgba(151, 75, 239, 0.3);
+  box-shadow: 0 0 12px rgba(151, 75, 239, 0.5), 0 0 24px rgba(151, 75, 239, 0.22);
+}
+
+.btnExport:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .toolbar {
+    top: 16px;
+    left: 0;
+    right: 0;
+    transform: none;
+    /* stays floating — no background */
+    align-items: center;
+  }
+
+  .btnRow {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 var(--space-4);
+    justify-content: center;
+  }
+
+  .btnRow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .btn {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
