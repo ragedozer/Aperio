@@ -1,14 +1,13 @@
-# Lumina — Desktop Photo Editor
+# Aperio — Web Photo Editor
 ## Claude Code Project Intelligence File
 
 ---
 
 ## Project Overview
 
-Lumina is a free, lightweight desktop photo editor built with **Tauri v2 + React + TypeScript**.
-It provides standard darkroom adjustments with a distinctive custom UI, and ships as a native
-app for macOS and Windows. No AI features, no subscriptions — just a clean editor for
-non-Adobe users.
+Aperio is a free, lightweight browser-based photo editor built with **React + TypeScript**, deployed on Vercel. It provides standard darkroom adjustments with a distinctive floating-panel UI. No AI features, no subscriptions, no login — just a clean editor for non-Adobe users.
+
+Originally scaffolded as a Tauri v2 desktop app (codename "Lumina"), it was fully converted to a pure web app. All Tauri/Rust code has been removed.
 
 ---
 
@@ -16,92 +15,97 @@ non-Adobe users.
 
 | Layer | Choice | Reason |
 |---|---|---|
-| Desktop shell | Tauri v2 | Lightweight, Rust-powered, native on Mac + Windows |
 | Frontend | React 18 + TypeScript | Component model suits panel-based editor UI |
 | Styling | CSS Modules + custom design tokens | Full creative control, no utility-class constraints |
 | Animation | Framer Motion | Fluid slider and panel transitions |
-| Image processing | Canvas API + custom pipelines | Direct pixel manipulation, no heavy deps |
+| Image processing | Canvas API + Web Workers | Direct pixel manipulation, no heavy deps |
 | State | Zustand | Lightweight, no boilerplate |
-| Build | Vite | Fast HMR during development |
-| CI/CD | GitHub Actions | Cross-platform builds (Mac + Windows) |
+| Build | Vite (port 1420) | Fast HMR during development |
+| Hosting | Vercel | SPA with rewrite rule in `vercel.json` |
+| Persistence | `localStorage` | Presets saved locally, no backend needed |
+| Icons | Material Symbols Rounded (Google Fonts CDN) | |
 
 ---
 
-## Current State (session 3 complete)
+## Current State
 
-The full scaffold is in place and all core editing features are working.
+All core editing features are working and deployed.
 
-- **Three-panel layout** — Toolbar (48px), LeftPanel (240px, history), Canvas (flex), RightPanel (280px)
-- **13 adjustment sliders** across three collapsible groups (Light / Color / Detail), each with spring-animated open/close chevron
+- **Floating layout** — Toolbar centered at top, LeftPanel (240px) floats left, RightPanel (280px) floats right, Canvas fills full background
+- **Mobile responsive** — Bottom sheet panel (collapsed/expanded), toolbar centered, LeftPanel hidden on mobile
+- **Frosted glass panels** — `backdrop-filter: blur(16px)` on panels and toolbar buttons
+- **13 adjustment sliders** across three collapsible groups (Light / Color / Detail)
 - **Custom AdjustmentSlider** — pill track, accent fill, dragging tooltip showing live value
 - **Live Histogram** — RGB channel overlay drawn on a canvas element
-- **Zustand store** — full state shape: image, adjustments, history stack (capped at 100), undo/redo, presets, `jumpToHistory`
-- **Full image processing pipeline** — all 13 adjustments implemented in `src/lib/imageProcessor.ts`; runs in a Web Worker via `useImageProcessor`
-- **Export** — Ctrl+E / toolbar button; full-res pipeline in a one-shot worker; JPEG or PNG from file extension
-- **Tauri file I/O** — `open_image`, `save_image`, `show_open_dialog`, `show_save_dialog` wired in Rust and typed in `src/lib/tauri.ts`
+- **Zustand store** — image, adjustments, history stack (capped at 100), undo/redo, presets
+- **Full image processing pipeline** — all 13 adjustments in `src/lib/imageProcessor.ts`; runs in a Web Worker
+- **Export** — Ctrl+E / toolbar button; full-res pipeline; always exports as PNG with `-edited` suffix via `<a download>`
+- **File I/O** — open via `<input type="file">` + File API; save via `canvas.toBlob()` + object URL download
 - **Keyboard shortcuts** — Ctrl+O, Ctrl+Z/Shift+Z, Ctrl+Shift+R, Ctrl+E, Space, backtick — all working
 - **History panel** — click any entry to revert; labels show which slider changed and by how much
-- **Presets** — save / apply / delete UI in the Presets tab of the right panel
-- **Canvas zoom** — fit-to-canvas on load and Space; scroll to zoom; zoom % badge
+- **Presets** — save / apply / delete; export to JSON file; import from JSON file; persisted in `localStorage`
+- **Canvas pan & zoom** — fit-to-canvas on load and Space; scroll to zoom; click-drag to pan; zoom % badge; clamp keeps image at least 80px visible
+- **Favicon** — `/public/Aperio_Icon.png`, plus `apple-touch-icon` for iOS
 - **TypeScript strict** — passes `tsc --noEmit` clean
 
-### What is not yet implemented
+### Not yet implemented
 
 - Debounce on slider changes (currently fires on every tick)
-- Pan / drag to move canvas when zoomed in past fit
-- Per-channel histogram (currently draws all three but could be cleaner)
-- Tauri persistence (presets and settings lost on app restart — use Tauri store plugin)
+- Per-channel histogram toggle (currently draws all three always)
 
 ---
 
 ## Project Structure
 
 ```
-Photo Editor/
-├── src-tauri/
-│   ├── src/
-│   │   ├── main.rs
-│   │   ├── commands/mod.rs     # open_image, save_image, show_open_dialog, show_save_dialog
-│   │   └── lib.rs              # plugin registration + invoke_handler
-│   ├── icons/                  # placeholder icons (pnpm gen-icons)
-│   ├── Cargo.toml
-│   └── tauri.conf.json
+Photo Editor - Web/
+├── public/
+│   └── Aperio_Icon.png         # favicon (also apple-touch-icon)
+├── graphics/
+│   ├── Aperio_Icon.png         # source icon (copy to public/ when updated)
+│   └── Aperio_Logo_W.svg       # white logo used in Toolbar
 ├── src/
 │   ├── main.tsx
-│   ├── App.tsx                 # layout shell + keyboard shortcut bindings
+│   ├── App.tsx                 # layout shell + keyboard shortcut bindings + hidden file input
 │   ├── App.module.css
 │   ├── components/
-│   │   ├── Canvas/             # Canvas.tsx — draws ImageData, shows empty state
+│   │   ├── Canvas/
+│   │   │   ├── Canvas.tsx      # draws ImageData, pan/zoom, entrance animation
+│   │   │   └── Canvas.module.css
 │   │   ├── Sidebar/
-│   │   │   ├── LeftPanel.tsx   # history list
-│   │   │   └── RightPanel.tsx  # collapsible adjustment groups + histogram tabs
-│   │   ├── Toolbar/            # Open / Undo / Redo / Reset / Export buttons
+│   │   │   ├── LeftPanel.tsx   # history list (hidden on mobile)
+│   │   │   ├── LeftPanel.module.css
+│   │   │   ├── RightPanel.tsx  # adjustment groups + histogram + presets; mobile bottom sheet
+│   │   │   └── RightPanel.module.css
+│   │   ├── Toolbar/
+│   │   │   ├── Toolbar.tsx     # logo + Open/Undo/Redo/Reset/Export buttons
+│   │   │   └── Toolbar.module.css
 │   │   ├── Sliders/
-│   │   │   └── AdjustmentSlider.tsx   # custom range input with animated fill + tooltip
+│   │   │   └── AdjustmentSlider.tsx
 │   │   └── Histogram/
-│   │       └── Histogram.tsx   # live RGB histogram canvas
+│   │       └── Histogram.tsx
 │   ├── hooks/
-│   │   ├── useImageProcessor.ts   # connects store → pipeline via rAF
+│   │   ├── useImageProcessor.ts   # connects store → pipeline via rAF + Web Worker
+│   │   ├── useExport.ts           # canvas.toBlob() → <a download> PNG export
+│   │   ├── usePresetPersistence.ts # localStorage key: aperio-presets
 │   │   ├── useAdjustments.ts
 │   │   └── useHistory.ts
 │   ├── store/
-│   │   └── editorStore.ts      # Zustand store
+│   │   └── editorStore.ts
 │   ├── lib/
-│   │   ├── imageProcessor.ts   # pixel math — applyAdjustments + scaleForPreview
-│   │   ├── tauri.ts            # typed invoke wrappers
-│   │   └── colorUtils.ts       # RGB↔HSL↔HSV + clamp
+│   │   ├── imageProcessor.ts      # pixel math — applyAdjustments + scaleForPreview
+│   │   ├── imageProcessor.worker.ts
+│   │   └── colorUtils.ts          # RGB↔HSL↔HSV + clamp
 │   ├── styles/
 │   │   ├── tokens.css
 │   │   └── global.css
 │   ├── types/
-│   │   ├── index.ts            # Adjustments, Preset, DEFAULT_ADJUSTMENTS, ADJUSTMENT_RANGES
+│   │   ├── index.ts               # Adjustments, Preset, DEFAULT_ADJUSTMENTS, ADJUSTMENT_RANGES
 │   │   └── css-modules.d.ts
 │   └── vite-env.d.ts
-├── scripts/
-│   └── gen-icons.mjs           # generates src-tauri/icons/* using Node built-ins only
 ├── .claude/
 │   └── launch.json             # preview server config (port 1420, pnpm exec vite)
-├── .github/workflows/build.yml
+├── vercel.json                 # SPA rewrite: all routes → /index.html
 ├── CLAUDE.md
 ├── package.json
 ├── tsconfig.json
@@ -117,14 +121,20 @@ Photo Editor/
 
 ```css
 :root {
-  --surface-base: #0e0e11;
-  --surface-raised: #16161a;
-  --surface-overlay: #1e1e24;
-  --surface-hover: #26262e;
+  --surface-base: #161616;
+  --surface-raised: #292929;
+  --surface-overlay: #212121;
+  --surface-hover: #353535;
 
-  --accent-primary: #7b61ff;
-  --accent-glow: rgba(123, 97, 255, 0.35);
-  --accent-subtle: rgba(123, 97, 255, 0.12);
+  --accent-primary: #974bef;
+  --accent-glow: rgba(151, 75, 239, 0.35);
+  --accent-subtle: rgba(151, 75, 239, 0.15);
+
+  --open-color: #f3ff00;
+  --open-subtle: rgba(243, 255, 0, 0.15);
+
+  --btn-fill: #353535;
+  --btn-stroke: #aaaaaa;
 
   --text-primary: #f0f0f5;
   --text-secondary: #8888a0;
@@ -150,30 +160,36 @@ Photo Editor/
 
 ### UI Principles
 
-- **Dark, deep base** — near-black with slight cool-purple undertone
-- **One accent color** — violet/indigo, used sparingly for active states and glow
+- **Dark base** — near-black with cool undertone
+- **Two accent colors** — violet (`--accent-primary`) for adjustments/active states; yellow (`--open-color`) for the Open button
+- **Floating panels** — `position: absolute` over the canvas; frosted glass via `backdrop-filter: blur(16px)`; `rgba(41,41,41,0.8)` background
 - **Custom sliders** — pill-shaped track, glowing thumb on hover/drag, value tooltip on drag
-- **Panels** — frosted glass feel using `backdrop-filter: blur` on `--surface-overlay`
 - **Typography** — `Inter` for UI labels, `JetBrains Mono` for numeric values
-- **No sharp corners** — minimum `--radius-sm` on all interactive elements
-- **Micro-animations** — Framer Motion for everything; no CSS `transition` on interactive elements
+- **Icons** — Material Symbols Rounded via Google Fonts CDN (`<span class="material-symbols-rounded">`)
+- **Micro-animations** — Framer Motion for panel/entrance transitions; CSS `transition` is acceptable for direct DOM mutations (e.g. button hover states)
+- **Scrollbars** — dark gray, 2px wide, pill-shaped via global CSS
 
 ### Layout
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Toolbar (top, 48px)                                │
+│         [Logo]  [Open] [Undo] [Redo] [Reset] [Export]  ← floating toolbar, centered, top: 32px
 ├──────────┬──────────────────────────┬───────────────┤
 │          │                          │               │
-│ Left     │   Canvas (center)        │  Right        │
-│ Panel    │   (image + overlays)     │  Panel        │
-│ 240px    │                          │  280px        │
+│ Left     │   Canvas (fills bg)      │  Right        │
+│ Panel    │   position:absolute      │  Panel        │
+│ 240px    │   inset:0                │  280px        │
+│ left:48px│                          │ right:48px    │
+│ top:180px│                          │ top:180px     │
 │          │                          │               │
 │ - History│                          │ ▾ Light       │
 │          │                          │ ▾ Color       │
 │          │                          │ ▾ Detail      │
 │          │                          │ — Histogram — │
+│          │                          │ — Presets —   │
 └──────────┴──────────────────────────┴───────────────┘
+
+Mobile (≤768px): panels collapse to bottom sheet; toolbar buttons centered; LeftPanel hidden
 ```
 
 ---
@@ -184,42 +200,23 @@ All adjustments are non-destructive. The pipeline re-runs on every change:
 
 ```
 Original Pixels
-     ↓  Exposure          ✓ implemented
-     ↓  Contrast          ✓ implemented
-     ↓  Highlights        ✓ implemented
-     ↓  Shadows           ✓ implemented
-     ↓  Whites            ✓ implemented
-     ↓  Blacks            ✓ implemented
-     ↓  Saturation        ✓ implemented
-     ↓  Vibrance          ✓ implemented
-     ↓  Temperature/Tint  ✓ implemented
-     ↓  Sharpness         ✓ implemented (unsharp mask)
-     ↓  Noise/Grain       ✓ implemented
-     ↓  Vignette          ✓ implemented
+     ↓  Exposure          ✓
+     ↓  Contrast          ✓
+     ↓  Highlights        ✓
+     ↓  Shadows           ✓
+     ↓  Whites            ✓
+     ↓  Blacks            ✓
+     ↓  Saturation        ✓
+     ↓  Vibrance          ✓
+     ↓  Temperature/Tint  ✓
+     ↓  Sharpness         ✓ (unsharp mask)
+     ↓  Noise/Grain       ✓
+     ↓  Vignette          ✓
      ↓
 Display Canvas
 ```
 
-Processing runs in a Web Worker (`src/lib/imageProcessor.worker.ts`) for real-time
-slider feedback. Full-res pipeline also runs in a dedicated worker on export.
-
-### Adjustment Ranges
-
-| Adjustment | Range | Default | Implemented |
-|---|---|---|---|
-| Exposure | -3.0 to +3.0 EV | 0 | ✓ |
-| Contrast | -100 to +100 | 0 | ✓ |
-| Highlights | -100 to +100 | 0 | ✓ |
-| Shadows | -100 to +100 | 0 | ✓ |
-| Whites | -100 to +100 | 0 | ✓ |
-| Blacks | -100 to +100 | 0 | ✓ |
-| Saturation | -100 to +100 | 0 | ✓ |
-| Vibrance | -100 to +100 | 0 | ✓ |
-| Temperature | -100 to +100 | 0 | ✓ |
-| Tint | -100 to +100 | 0 | ✓ |
-| Sharpness | 0 to 100 | 0 | ✓ |
-| Noise/Grain | 0 to 100 | 0 | ✓ |
-| Vignette | -100 to +100 | 0 | ✓ |
+Preview runs on a downscaled copy (max 1200px longest edge) in a persistent Web Worker (`useImageProcessor`). Export runs the full-res pipeline in a one-shot worker (`useExport`).
 
 ---
 
@@ -260,46 +257,51 @@ interface EditorStore {
 
 ---
 
-## Tauri Commands (`src-tauri/src/commands/mod.rs`)
+## Keyboard Shortcuts
 
-```rust
-#[tauri::command]
-pub async fn open_image(path: String) -> Result<Vec<u8>, String>
-
-#[tauri::command]
-pub async fn save_image(path: String, data: Vec<u8>, _format: String) -> Result<(), String>
-
-#[tauri::command]
-pub async fn show_open_dialog(app: AppHandle) -> Result<Option<String>, String>
-
-#[tauri::command]
-pub async fn show_save_dialog(app: AppHandle, default_name: String) -> Result<Option<String>, String>
-```
-
-All use `.blocking_pick_file()` / `.blocking_save_file()` from `tauri-plugin-dialog`.
-Frontend wrappers live in `src/lib/tauri.ts`.
+| Shortcut | Action |
+|---|---|
+| `Ctrl + O` | Open image |
+| `Ctrl + Z` | Undo |
+| `Ctrl + Shift + Z` | Redo |
+| `Ctrl + Shift + R` | Reset all adjustments |
+| `` ` `` (hold) | Show original |
+| `Ctrl + E` | Export full-res PNG |
+| `Space` | Fit image to canvas / reset pan |
 
 ---
 
-## Keyboard Shortcuts
+## Development
 
-| Shortcut | Action | Implemented |
-|---|---|---|
-| `Ctrl + O` | Open image | ✓ |
-| `Ctrl + Z` | Undo | ✓ |
-| `Ctrl + Shift + Z` | Redo | ✓ |
-| `Ctrl + Shift + R` | Reset all adjustments | ✓ |
-| `` ` `` (hold) | Show original | ✓ |
-| `Ctrl + E` | Export full-res | ✓ |
-| `Space` | Fit image to canvas | ✓ |
+```bash
+pnpm install
+pnpm dev        # starts Vite on port 1420
+```
+
+### Production / Deploy
+
+Push to `main` on GitHub → Vercel auto-deploys.
+Repo: https://github.com/ragedozer/Aperio.git
+
+Manual build:
+```bash
+pnpm build      # outputs to dist/
+```
+
+### Favicon update workflow
+
+When updating the icon, replace `graphics/Aperio_Icon.png`, then:
+```bash
+cp graphics/Aperio_Icon.png public/Aperio_Icon.png
+git add public/Aperio_Icon.png && git commit -m "Update favicon" && git push
+```
 
 ---
 
 ## Performance Rules
 
 - **Always process a downscaled preview** for real-time slider feedback (max 1200px on longest edge)
-- **Debounce slider changes** by 16ms (one frame) before triggering pipeline
-- **Run image processing in a Web Worker** — live preview uses a persistent worker in `useImageProcessor`; export spawns a one-shot worker in `useExport`
+- **Run image processing in a Web Worker** — never block the main thread
 - **Cache the original pixel data** — never re-read from the image element
 - **Export only**: apply full-res pipeline when user triggers export, not during editing
 
@@ -309,51 +311,17 @@ Frontend wrappers live in `src/lib/tauri.ts`.
 
 - TypeScript strict mode always on
 - CSS Modules for component styles, global tokens in `tokens.css`
-- No inline styles except for dynamic values (e.g. slider fill width)
-- Framer Motion for all transitions — no CSS `transition` on interactive elements
-- `useCallback` and `useMemo` on any function passed to canvas or image processor
-- All Tauri commands wrapped in a typed `invoke` helper in `src/lib/tauri.ts`
-
----
-
-## Build & Release
-
-### Prerequisites (Windows)
-
-1. Install Node.js 20+
-2. `npm install -g pnpm`
-3. Download and run `https://win.rustup.rs/x86_64` with flag `-y` (installs Rust stable)
-4. Download and run `https://aka.ms/vs/17/release/vs_BuildTools.exe` with flags `--passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended` (installs MSVC linker)
-5. Restart terminal so `cargo` and the MSVC linker are on PATH
-
-### First-time setup
-
-```bash
-pnpm install
-pnpm approve-builds --all   # approves esbuild postinstall — required once on pnpm 11+
-pnpm gen-icons              # generates src-tauri/icons/ placeholder icons
-pnpm tauri dev
-```
-
-### Development
-```bash
-pnpm tauri dev
-```
-
-### Production Build
-```bash
-pnpm tauri build
-# Output: src-tauri/target/release/bundle/
-```
+- No inline styles except for dynamic values (slider fill width, canvas transform)
+- `useCallback` on any function passed to canvas or image processor
+- Do not use `motion.canvas` or `motion.div` with `display: contents` — Framer Motion's transform animation conflicts with raw CSS `transform` strings on the same element. Use a wrapper `motion.div` for entrance animations and a plain element for pan/zoom transforms.
 
 ---
 
 ## What NOT to Do
 
-- Do not add AI or LLM features — this is intentionally a simple, offline editor
-- Do not use `localStorage` — use Tauri's store plugin for persistence
-- Do not process full-res images on every slider tick
-- Do not use a third-party image processing library (sharp, jimp) in the frontend — use Canvas API
+- Do not add AI or LLM features — intentionally a simple, offline editor
+- Do not use `sessionStorage` or a backend for persistence — use `localStorage`
+- Do not process full-res images on every slider tick — use the downscaled preview pipeline
+- Do not use a third-party image processing library (sharp, jimp) — use Canvas API
 - Do not use inline CSS for design tokens — always use CSS variables
-- Do not add dependencies without checking if the Canvas API already covers the need
-- Do not use CSS `transition` on interactive elements — use Framer Motion
+- Do not use `motion.canvas` with both FM animate props and a raw `style.transform` string — they conflict; wrap in a `motion.div` instead
