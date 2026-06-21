@@ -245,6 +245,7 @@
     top: auto;
     width: 100%;
     height: auto; /* driven by Framer Motion */
+    min-height: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 

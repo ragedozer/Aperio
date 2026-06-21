@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEditorStore, selectFocusedImage } from "../../store/editorStore";
 import { ImageRecord } from "../../types";
@@ -449,7 +450,7 @@ function ActionChip() {
 
   if (images.length <= 1 || selectedImageIds.length === 0) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         className={`${styles.chip} ${bottomSheetCollapsed ? styles.chipCollapsed : ""}`}
@@ -478,7 +479,8 @@ function ActionChip() {
           </button>
         )}
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

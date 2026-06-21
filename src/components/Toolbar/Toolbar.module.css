@@ -86,6 +86,11 @@
   border-color: var(--btn-stroke);
 }
 
+/* Flex line-break element — hidden on desktop, shown on mobile */
+.rowBreak {
+  display: none;
+}
+
 /* Export */
 .btnExport {
   background: rgba(151, 75, 239, 0.15);
@@ -196,10 +201,10 @@
     font-size: 13px;
   }
 
-  /* Keep utility buttons (Undo/Redo/Reset) together, then Open/Add/Export wrap to next line */
-  .btnOpen,
-  .btnAdd,
-  .exportWrap {
-    order: 1;
+  /* Force line break between Undo/Redo/Reset and Open/Add/Export */
+  .rowBreak {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
   }
 }

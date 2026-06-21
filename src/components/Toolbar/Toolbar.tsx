@@ -113,6 +113,8 @@ export function Toolbar({ onOpen, onAdd }: ToolbarProps) {
         <motion.button {...tap} className={`${styles.btn} ${styles.btnDefault}`} onClick={resetAdjustments} title="Reset (Ctrl+Shift+R)">
           <Icon name="restart_alt" /> Reset
         </motion.button>
+        {/* Forces Open/Add/Export onto a second row on mobile */}
+        <div className={styles.rowBreak} aria-hidden />
         <motion.button {...tap} className={`${styles.btn} ${styles.btnOpen}`} onClick={onOpen} title="Open image(s) — replaces canvas (Ctrl+O)">
           Open
         </motion.button>
