@@ -26,10 +26,10 @@ export function AdjustmentSlider({ label, value, min, max, onChange }: Props) {
   const rawValue = useRef(value);
   const totalMovement = useRef(0); // total pixels traveled this drag — guards the magnetic snap
   const lastClientX = useRef(0);
+  const trackRef = useRef<HTMLDivElement>(null);
 
   const step = max <= 3 ? 0.1 : 1;
   const decimals = step < 1 ? 1 : 0;
-  const pixelsPerUnit = 600 / (max - min);
   const percent = ((value - min) / (max - min)) * 100;
 
   // Snap zone: tight for exposure (EV), wider for integer sliders
@@ -48,11 +48,13 @@ export function AdjustmentSlider({ label, value, min, max, onChange }: Props) {
     const dx = e.clientX - lastClientX.current;
     lastClientX.current = e.clientX;
     totalMovement.current += Math.abs(dx);
+    const trackWidth = trackRef.current?.offsetWidth ?? 240;
+    const pixelsPerUnit = trackWidth / (max - min);
     const sensitivity = e.shiftKey ? pixelsPerUnit * 10 : pixelsPerUnit;
     rawValue.current = Math.max(min, Math.min(max, rawValue.current + dx / sensitivity));
     const snapped = parseFloat((Math.round(rawValue.current / step) * step).toFixed(decimals));
     onChange(snapped);
-  }, [min, max, step, decimals, pixelsPerUnit, onChange]);
+  }, [min, max, step, decimals, onChange]);
 
   const onPointerUp = useCallback(() => {
     // Magnetic zero: only snap if within threshold AND drag was short (a nudge, not an intentional move)
@@ -82,7 +84,7 @@ export function AdjustmentSlider({ label, value, min, max, onChange }: Props) {
       </span>
 
       <div className={styles.sliderWrapper}>
-        <div className={`${styles.track} ${isDragging ? styles.trackActive : ""}`}>
+        <div ref={trackRef} className={`${styles.track} ${isDragging ? styles.trackActive : ""}`}>
           <motion.div
             className={styles.fill}
             style={{ width: `${percent}%` }}

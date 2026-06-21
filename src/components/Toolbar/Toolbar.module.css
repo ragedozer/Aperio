@@ -180,23 +180,26 @@
     left: 0;
     right: 0;
     transform: none;
-    /* stays floating — no background */
     align-items: center;
+    gap: 10px;
   }
 
   .btnRow {
-    overflow-x: auto;
-    scrollbar-width: none;
     padding: 0 var(--space-4);
     justify-content: center;
-  }
-
-  .btnRow::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .btn {
     padding: 6px 14px;
     font-size: 13px;
+  }
+
+  /* Keep utility buttons (Undo/Redo/Reset) together, then Open/Add/Export wrap to next line */
+  .btnOpen,
+  .btnAdd,
+  .exportWrap {
+    order: 1;
   }
 }

@@ -236,6 +236,10 @@
 
   .chip {
     bottom: calc(52vh + 12px);
+    left: var(--space-4);
+    right: var(--space-4);
+    transform: none;
+    justify-content: center;
   }
 
   .grid {
