@@ -172,12 +172,19 @@
 
 /* ─── Floating action chip ───────────────────────────────────── */
 
-.chip {
+/* Full-width fixed row — centers the pill via flexbox, no transform needed */
+.chipRow {
   position: fixed;
   bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.chip {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -189,6 +196,7 @@
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
+  pointer-events: auto;
 }
 
 .chipBtn {
@@ -234,16 +242,13 @@
     padding-bottom: 52vh;
   }
 
-  .chip {
+  .chipRow {
     bottom: calc(52vh + 12px);
-    left: var(--space-4);
-    right: var(--space-4);
-    transform: none;
-    justify-content: center;
+    padding: 0 var(--space-4);
   }
 
   /* Sheet is collapsed — sit just above the 32px handle */
-  .chipCollapsed {
+  .chipRowCollapsed {
     bottom: calc(32px + 12px);
   }
 

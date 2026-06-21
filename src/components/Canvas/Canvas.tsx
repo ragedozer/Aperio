@@ -452,33 +452,35 @@ function ActionChip() {
 
   return createPortal(
     <AnimatePresence>
-      <motion.div
-        className={`${styles.chip} ${bottomSheetCollapsed ? styles.chipCollapsed : ""}`}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 8 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-      >
-        <button
-          className={`${styles.chipBtn} ${styles.chipBtnDanger}`}
-          onClick={() => removeImages(selectedImageIds)}
-          title="Remove selected"
+      <div className={`${styles.chipRow} ${bottomSheetCollapsed ? styles.chipRowCollapsed : ""}`}>
+        <motion.div
+          className={styles.chip}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
         >
-          <span className="material-symbols-rounded">delete</span>
-          Remove
-        </button>
-        <div className={styles.chipDivider} />
-        <button className={styles.chipBtn} onClick={copyAdjustments} title="Copy edit settings">
-          <span className="material-symbols-rounded">copy_all</span>
-          Copy Settings
-        </button>
-        {copiedAdjustments && (
-          <button className={styles.chipBtn} onClick={pasteAdjustments} title="Paste edit settings">
-            <span className="material-symbols-rounded">content_paste</span>
-            Paste
+          <button
+            className={`${styles.chipBtn} ${styles.chipBtnDanger}`}
+            onClick={() => removeImages(selectedImageIds)}
+            title="Remove selected"
+          >
+            <span className="material-symbols-rounded">delete</span>
+            Remove
           </button>
-        )}
-      </motion.div>
+          <div className={styles.chipDivider} />
+          <button className={styles.chipBtn} onClick={copyAdjustments} title="Copy edit settings">
+            <span className="material-symbols-rounded">copy_all</span>
+            Copy Settings
+          </button>
+          {copiedAdjustments && (
+            <button className={styles.chipBtn} onClick={pasteAdjustments} title="Paste edit settings">
+              <span className="material-symbols-rounded">content_paste</span>
+              Paste
+            </button>
+          )}
+        </motion.div>
+      </div>
     </AnimatePresence>,
     document.body
   );
