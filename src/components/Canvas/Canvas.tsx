@@ -245,11 +245,19 @@ function SingleImageView() {
 
 // ─── Grid view ──────────────────────────────────────────────────────────────
 
-const TILE_MAX_W = 360;
 const DRAG_THRESHOLD = 8;
+const TOUCH_PAN_THRESHOLD = 8;
 
-function drawThumbnail(canvas: HTMLCanvasElement, src: ImageData, tileH: number) {
-  const scale = Math.min(tileH / src.height, TILE_MAX_W / src.width);
+// Draw the preview image at its natural dimensions (no rescaling)
+function drawImage(canvas: HTMLCanvasElement, src: ImageData) {
+  canvas.width = src.width;
+  canvas.height = src.height;
+  canvas.getContext("2d")!.putImageData(src, 0, 0);
+}
+
+// Scaled-down version used only for the drag ghost overlay
+function drawGhost(canvas: HTMLCanvasElement, src: ImageData) {
+  const scale = Math.min(180 / src.height, 300 / src.width);
   const w = Math.max(1, Math.round(src.width * scale));
   const h = Math.max(1, Math.round(src.height * scale));
   canvas.width = w;
@@ -268,7 +276,6 @@ function ImageTile({
   isDropTarget,
   onSelect,
   onDragStart,
-  tileH,
 }: {
   image: ImageRecord;
   isSelected: boolean;
@@ -276,7 +283,6 @@ function ImageTile({
   isDropTarget: boolean;
   onSelect: (id: string, additive: boolean) => void;
   onDragStart: (id: string, x: number, y: number) => void;
-  tileH: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -284,8 +290,8 @@ function ImageTile({
     const canvas = canvasRef.current;
     const src = image.displayImage ?? image.previewImage;
     if (!canvas || !src) return;
-    drawThumbnail(canvas, src, tileH);
-  }, [image.displayImage, image.previewImage, tileH]);
+    drawImage(canvas, src);
+  }, [image.displayImage, image.previewImage]);
 
   const name = image.filePath.split(/[/\\]/).pop() ?? image.filePath;
 
@@ -319,15 +325,15 @@ function ImageTile({
   );
 }
 
-function DragGhost({ image, x, y, tileH }: { image: ImageRecord; x: number; y: number; tileH: number }) {
+function DragGhost({ image, x, y }: { image: ImageRecord; x: number; y: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const src = image.displayImage ?? image.previewImage;
     if (!canvas || !src) return;
-    drawThumbnail(canvas, src, tileH);
-  }, [image.displayImage, image.previewImage, tileH]);
+    drawGhost(canvas, src);
+  }, [image.displayImage, image.previewImage]);
 
   return (
     <div className={styles.dragGhost} style={{ left: x, top: y }}>
@@ -354,14 +360,6 @@ function GridView({
   onSelect: (id: string, additive: boolean) => void;
   onReorder: (fromId: string, toId: string) => void;
 }) {
-  // ─── Tile size (responsive) ─────────────────────────────────────────────
-  const [tileH, setTileH] = useState(() => window.innerWidth <= 768 ? 130 : 200);
-  useEffect(() => {
-    const onResize = () => setTileH(window.innerWidth <= 768 ? 130 : 200);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
   // ─── Pan / zoom ─────────────────────────────────────────────────────────
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -440,37 +438,48 @@ function GridView({
   const lastTapTime = useRef(0);
   const pinchStart = useRef<{ dist: number; scale: number; ox: number; oy: number; mx: number; my: number } | null>(null);
   const touchPanStart = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  const touchMovedRef = useRef(false);
 
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
-    function dist(t: TouchList) {
+    function tdist(t: TouchList) {
       const dx = t[1].clientX - t[0].clientX, dy = t[1].clientY - t[0].clientY;
       return Math.sqrt(dx * dx + dy * dy);
     }
     function onTouchStart(e: TouchEvent) {
-      e.preventDefault();
       if (e.touches.length === 1) {
-        const now = Date.now();
-        if (now - lastTapTime.current < 300) { setZoom(null); setOffset({ x: 0, y: 0 }); }
-        lastTapTime.current = now;
+        // Do NOT preventDefault — lets native click fire for tile selection
+        touchMovedRef.current = false;
+        const onEmpty = !(e.target as HTMLElement).closest("[data-tile-id]");
+        if (onEmpty) {
+          const now = Date.now();
+          if (now - lastTapTime.current < 300) { setZoom(null); setOffset({ x: 0, y: 0 }); }
+          lastTapTime.current = now;
+        }
         touchPanStart.current = { px: e.touches[0].clientX, py: e.touches[0].clientY, ox: offsetRef.current.x, oy: offsetRef.current.y };
         pinchStart.current = null;
       } else if (e.touches.length === 2) {
+        e.preventDefault();
         touchPanStart.current = null;
         const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        pinchStart.current = { dist: dist(e.touches), scale: zoomRef.current ?? fitScaleRef.current, ox: offsetRef.current.x, oy: offsetRef.current.y, mx, my };
+        pinchStart.current = { dist: tdist(e.touches), scale: zoomRef.current ?? fitScaleRef.current, ox: offsetRef.current.x, oy: offsetRef.current.y, mx, my };
       }
     }
     function onTouchMove(e: TouchEvent) {
-      e.preventDefault();
       if (!el) return;
-      const rect = el.getBoundingClientRect();
       if (e.touches.length === 1 && touchPanStart.current) {
-        setOffset({ x: touchPanStart.current.ox + e.touches[0].clientX - touchPanStart.current.px, y: touchPanStart.current.oy + e.touches[0].clientY - touchPanStart.current.py });
+        const dx = e.touches[0].clientX - touchPanStart.current.px;
+        const dy = e.touches[0].clientY - touchPanStart.current.py;
+        if (!touchMovedRef.current && Math.sqrt(dx * dx + dy * dy) < TOUCH_PAN_THRESHOLD) return;
+        touchMovedRef.current = true;
+        e.preventDefault(); // only prevent scroll once we're actually panning
+        setOffset({ x: touchPanStart.current.ox + dx, y: touchPanStart.current.oy + dy });
       } else if (e.touches.length === 2 && pinchStart.current) {
-        const ratio = dist(e.touches) / pinchStart.current.dist;
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const ratio = tdist(e.touches) / pinchStart.current.dist;
         const newScale = Math.max(0.05, Math.min(pinchStart.current.scale * ratio, 10));
         const sr = newScale / pinchStart.current.scale;
         const cx = pinchStart.current.mx - rect.left - rect.width / 2;
@@ -576,14 +585,13 @@ function GridView({
               isDropTarget={drag?.dropId === img.id}
               onSelect={handleSelect}
               onDragStart={handleDragStart}
-              tileH={tileH}
             />
           ))}
         </div>
       </div>
 
       {drag && draggingImage && (
-        <DragGhost image={draggingImage} x={drag.x} y={drag.y} tileH={tileH} />
+        <DragGhost image={draggingImage} x={drag.x} y={drag.y} />
       )}
 
       <span className={styles.zoomBadge}>{Math.round(effectiveScale * 100)}%</span>
