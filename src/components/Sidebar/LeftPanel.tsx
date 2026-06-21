@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { useEditorStore } from "../../store/editorStore";
+import { useEditorStore, selectFocusedImage } from "../../store/editorStore";
 import { Adjustments, DEFAULT_ADJUSTMENTS } from "../../types";
 import styles from "./LeftPanel.module.css";
 
@@ -48,7 +48,10 @@ function getHistoryLabel(
 }
 
 export function LeftPanel() {
-  const { history, historyIndex, jumpToHistory } = useEditorStore();
+  const focused = useEditorStore(selectFocusedImage);
+  const { jumpToHistory } = useEditorStore();
+  const history = focused?.history ?? [];
+  const historyIndex = focused?.historyIndex ?? 0;
 
   // Track which index just became active so we can flash it
   const [flashIdx, setFlashIdx] = useState<number | null>(null);

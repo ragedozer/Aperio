@@ -1,25 +1,34 @@
 import { create } from "zustand";
-import { Adjustments, DEFAULT_ADJUSTMENTS, Preset } from "../types";
+import { Adjustments, DEFAULT_ADJUSTMENTS, ImageRecord, Preset } from "../types";
 
 interface EditorStore {
-  // Image
-  originalImage: ImageData | null;
-  previewImage: ImageData | null;   // downscaled copy used by the live pipeline
-  displayImage: ImageData | null;
-  filePath: string | null;
+  images: ImageRecord[];
+  selectedImageIds: string[];
+  copiedAdjustments: Adjustments | null;
 
-  // Adjustments
-  adjustments: Adjustments;
+  // Image management
+  addImage: (original: ImageData, preview: ImageData, path: string) => void;
+  removeImages: (ids: string[]) => void;
+  clearImages: () => void;
+  setDisplayImage: (id: string, image: ImageData | null) => void;
+  reorderImages: (fromId: string, toId: string) => void;
+
+  // Selection
+  selectImage: (id: string, additive?: boolean) => void;
+
+  // Adjustments (operate on focused image — last in selectedImageIds)
   setAdjustment: (key: keyof Adjustments, value: number) => void;
   resetAdjustments: () => void;
 
-  // History (undo/redo)
-  history: Adjustments[];
-  historyIndex: number;
+  // History (operate on focused image)
   undo: () => void;
   redo: () => void;
-  pushHistory: (adjustments: Adjustments) => void;
+  pushHistory: (id: string, adjustments: Adjustments) => void;
   jumpToHistory: (index: number) => void;
+
+  // Copy / paste settings
+  copyAdjustments: () => void;
+  pasteAdjustments: () => void;
 
   // UI
   isProcessing: boolean;
@@ -29,10 +38,6 @@ interface EditorStore {
   setShowOriginal: (show: boolean) => void;
   setIsProcessing: (processing: boolean) => void;
 
-  // Image loading
-  setOriginalImage: (original: ImageData | null, preview: ImageData | null, path: string | null) => void;
-  setDisplayImage: (image: ImageData | null) => void;
-
   // Presets
   presets: Preset[];
   savePreset: (name: string) => void;
@@ -40,74 +45,208 @@ interface EditorStore {
   deletePreset: (id: string) => void;
 }
 
-// Module-level timer so the debounce survives re-renders and is shared
-// across all callers of setAdjustment.
-let historyTimer: ReturnType<typeof setTimeout> | null = null;
-function cancelHistoryTimer() {
-  if (historyTimer) { clearTimeout(historyTimer); historyTimer = null; }
+// Per-image history debounce timers
+const historyTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelHistoryTimer(id: string) {
+  const t = historyTimers.get(id);
+  if (t) { clearTimeout(t); historyTimers.delete(id); }
+}
+
+function updateImage(images: ImageRecord[], id: string, patch: Partial<ImageRecord>): ImageRecord[] {
+  return images.map((img) => (img.id === id ? { ...img, ...patch } : img));
+}
+
+function getFocused(images: ImageRecord[], selectedImageIds: string[]): ImageRecord | null {
+  if (selectedImageIds.length === 0) return null;
+  const id = selectedImageIds[selectedImageIds.length - 1];
+  return images.find((img) => img.id === id) ?? null;
+}
+
+// Selector exported for components to use
+export function selectFocusedImage(state: EditorStore): ImageRecord | null {
+  return getFocused(state.images, state.selectedImageIds);
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
-  // Image
-  originalImage: null,
-  previewImage: null,
-  displayImage: null,
-  filePath: null,
+  images: [],
+  selectedImageIds: [],
+  copiedAdjustments: null,
 
-  // Adjustments
-  adjustments: { ...DEFAULT_ADJUSTMENTS },
+  addImage: (original, preview, path) => {
+    const id = crypto.randomUUID();
+    const record: ImageRecord = {
+      id,
+      filePath: path,
+      originalImage: original,
+      previewImage: preview,
+      displayImage: null,
+      adjustments: { ...DEFAULT_ADJUSTMENTS },
+      history: [{ ...DEFAULT_ADJUSTMENTS }],
+      historyIndex: 0,
+    };
+    const { images, selectedImageIds } = get();
+    set({ images: [...images, record], selectedImageIds: [...selectedImageIds, id] });
+  },
+
+  removeImages: (ids) => {
+    const toRemove = new Set(ids);
+    ids.forEach(cancelHistoryTimer);
+    const { images, selectedImageIds } = get();
+    const newImages = images.filter((img) => !toRemove.has(img.id));
+    const newSelected = selectedImageIds.filter((id) => !toRemove.has(id));
+    const finalSelected =
+      newSelected.length === 0 && newImages.length > 0
+        ? [newImages[newImages.length - 1].id]
+        : newSelected;
+    set({ images: newImages, selectedImageIds: finalSelected });
+  },
+
+  clearImages: () => {
+    get().images.forEach((img) => cancelHistoryTimer(img.id));
+    set({ images: [], selectedImageIds: [] });
+  },
+
+  setDisplayImage: (id, image) => {
+    set((state) => ({ images: updateImage(state.images, id, { displayImage: image }) }));
+  },
+
+  reorderImages: (fromId, toId) => {
+    const { images } = get();
+    const fromIdx = images.findIndex((img) => img.id === fromId);
+    const toIdx = images.findIndex((img) => img.id === toId);
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+    const next = [...images];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    set({ images: next });
+  },
+
+  selectImage: (id, additive = false) => {
+    const { selectedImageIds } = get();
+    if (additive) {
+      if (selectedImageIds.includes(id)) {
+        const next = selectedImageIds.filter((sid) => sid !== id);
+        set({ selectedImageIds: next.length > 0 ? next : selectedImageIds });
+      } else {
+        set({ selectedImageIds: [...selectedImageIds, id] });
+      }
+    } else {
+      set({ selectedImageIds: [id] });
+    }
+  },
 
   setAdjustment: (key, value) => {
-    set({ adjustments: { ...get().adjustments, [key]: value } });
-    cancelHistoryTimer();
-    historyTimer = setTimeout(() => {
-      historyTimer = null;
-      get().pushHistory(get().adjustments);
-    }, 300);
+    const { selectedImageIds } = get();
+    if (selectedImageIds.length === 0) return;
+    const selected = new Set(selectedImageIds);
+    set((state) => ({
+      images: state.images.map((img) =>
+        selected.has(img.id)
+          ? { ...img, adjustments: { ...img.adjustments, [key]: value } }
+          : img
+      ),
+    }));
+    for (const id of selectedImageIds) {
+      cancelHistoryTimer(id);
+      historyTimers.set(
+        id,
+        setTimeout(() => {
+          historyTimers.delete(id);
+          const current = get().images.find((img) => img.id === id);
+          if (current) get().pushHistory(id, current.adjustments);
+        }, 300)
+      );
+    }
   },
 
   resetAdjustments: () => {
+    const { images, selectedImageIds } = get();
+    if (selectedImageIds.length === 0) return;
     const reset = { ...DEFAULT_ADJUSTMENTS };
-    set({ adjustments: reset });
-    get().pushHistory(reset);
+    const selected = new Set(selectedImageIds);
+    set((state) => ({
+      images: state.images.map((img) =>
+        selected.has(img.id) ? { ...img, adjustments: reset } : img
+      ),
+    }));
+    for (const id of selectedImageIds) {
+      // only push history if the image exists
+      if (images.find((img) => img.id === id)) get().pushHistory(id, reset);
+    }
   },
 
-  // History
-  history: [{ ...DEFAULT_ADJUSTMENTS }],
-  historyIndex: 0,
-
-  pushHistory: (adjustments) => {
+  pushHistory: (id, adjustments) => {
     const MAX_HISTORY = 100;
-    const { history, historyIndex } = get();
-    const truncated = history.slice(0, historyIndex + 1);
+    const img = get().images.find((i) => i.id === id);
+    if (!img) return;
+    const truncated = img.history.slice(0, img.historyIndex + 1);
     const next = [...truncated, adjustments].slice(-MAX_HISTORY);
-    set({ history: next, historyIndex: next.length - 1 });
+    set((state) => ({ images: updateImage(state.images, id, { history: next, historyIndex: next.length - 1 }) }));
   },
 
   undo: () => {
-    cancelHistoryTimer();
-    const { historyIndex, history } = get();
-    if (historyIndex <= 0) return;
-    const newIndex = historyIndex - 1;
-    set({ historyIndex: newIndex, adjustments: { ...history[newIndex] } });
+    const { images, selectedImageIds } = get();
+    const focused = getFocused(images, selectedImageIds);
+    if (!focused || focused.historyIndex <= 0) return;
+    cancelHistoryTimer(focused.id);
+    const newIndex = focused.historyIndex - 1;
+    set((state) => ({
+      images: updateImage(state.images, focused.id, {
+        historyIndex: newIndex,
+        adjustments: { ...focused.history[newIndex] },
+      }),
+    }));
   },
 
   redo: () => {
-    cancelHistoryTimer();
-    const { historyIndex, history } = get();
-    if (historyIndex >= history.length - 1) return;
-    const newIndex = historyIndex + 1;
-    set({ historyIndex: newIndex, adjustments: { ...history[newIndex] } });
+    const { images, selectedImageIds } = get();
+    const focused = getFocused(images, selectedImageIds);
+    if (!focused || focused.historyIndex >= focused.history.length - 1) return;
+    cancelHistoryTimer(focused.id);
+    const newIndex = focused.historyIndex + 1;
+    set((state) => ({
+      images: updateImage(state.images, focused.id, {
+        historyIndex: newIndex,
+        adjustments: { ...focused.history[newIndex] },
+      }),
+    }));
   },
 
   jumpToHistory: (index) => {
-    cancelHistoryTimer();
-    const { history } = get();
-    if (index < 0 || index >= history.length) return;
-    set({ historyIndex: index, adjustments: { ...history[index] } });
+    const { images, selectedImageIds } = get();
+    const focused = getFocused(images, selectedImageIds);
+    if (!focused || index < 0 || index >= focused.history.length) return;
+    cancelHistoryTimer(focused.id);
+    set((state) => ({
+      images: updateImage(state.images, focused.id, {
+        historyIndex: index,
+        adjustments: { ...focused.history[index] },
+      }),
+    }));
   },
 
-  // UI
+  copyAdjustments: () => {
+    const { images, selectedImageIds } = get();
+    const focused = getFocused(images, selectedImageIds);
+    if (!focused) return;
+    set({ copiedAdjustments: { ...focused.adjustments } });
+  },
+
+  pasteAdjustments: () => {
+    const { copiedAdjustments, images, selectedImageIds } = get();
+    if (!copiedAdjustments || selectedImageIds.length === 0) return;
+    const selected = new Set(selectedImageIds);
+    set((state) => ({
+      images: state.images.map((img) =>
+        selected.has(img.id) ? { ...img, adjustments: { ...copiedAdjustments } } : img
+      ),
+    }));
+    for (const id of selectedImageIds) {
+      if (images.find((img) => img.id === id)) get().pushHistory(id, copiedAdjustments);
+    }
+  },
+
   isProcessing: false,
   showOriginal: false,
   activePanel: "adjustments",
@@ -116,35 +255,37 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setShowOriginal: (show) => set({ showOriginal: show }),
   setIsProcessing: (processing) => set({ isProcessing: processing }),
 
-  // Image loading
-  setOriginalImage: (original, preview, path) =>
-    set({ originalImage: original, previewImage: preview, filePath: path }),
-  setDisplayImage: (image) => set({ displayImage: image }),
-
-  // Presets
   presets: [],
 
   savePreset: (name) => {
-    const { adjustments, presets } = get();
+    const { images, selectedImageIds, presets } = get();
+    const focused = getFocused(images, selectedImageIds);
+    if (!focused) return;
     const preset: Preset = {
       id: crypto.randomUUID(),
       name,
-      adjustments: { ...adjustments },
+      adjustments: { ...focused.adjustments },
       createdAt: Date.now(),
     };
     set({ presets: [...presets, preset] });
   },
 
   applyPreset: (id) => {
-    const { presets } = get();
+    const { presets, images, selectedImageIds } = get();
     const preset = presets.find((p) => p.id === id);
-    if (!preset) return;
-    set({ adjustments: { ...preset.adjustments } });
-    get().pushHistory(preset.adjustments);
+    if (!preset || selectedImageIds.length === 0) return;
+    const selected = new Set(selectedImageIds);
+    set((state) => ({
+      images: state.images.map((img) =>
+        selected.has(img.id) ? { ...img, adjustments: { ...preset.adjustments } } : img
+      ),
+    }));
+    for (const id of selectedImageIds) {
+      if (images.find((img) => img.id === id)) get().pushHistory(id, preset.adjustments);
+    }
   },
 
   deletePreset: (id) => {
-    const { presets } = get();
-    set({ presets: presets.filter((p) => p.id !== id) });
+    set((state) => ({ presets: state.presets.filter((p) => p.id !== id) }));
   },
 }));

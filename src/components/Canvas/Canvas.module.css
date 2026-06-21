@@ -17,6 +17,17 @@
   align-items: center;
   justify-content: center;
   background: var(--surface-base);
+  touch-action: none;
+  overflow: auto;
+}
+
+/* Single-image view fills the wrapper and owns all pan/zoom events */
+.singleView {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .canvas {
@@ -61,8 +72,183 @@
   border-radius: var(--radius-sm);
 }
 
+/* ─── Grid ───────────────────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  gap: 12px;
+  padding: var(--space-6);
+  /* grid-template-columns set via inline style */
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface-raised);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tile:hover {
+  border-color: var(--surface-hover);
+}
+
+.tileSelected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.tileImgWrap {
+  width: 220px;
+  height: 165px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-base);
+}
+
+.tileCanvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.tileLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", monospace;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tileDragging {
+  pointer-events: none;
+}
+
+.tileDropTarget {
+  border-color: var(--accent-primary) !important;
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.dragGhost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%) rotate(2deg) scale(0.95);
+  opacity: 0.85;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-raised);
+  padding: var(--space-2);
+}
+
+.tileCheck {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  color: var(--accent-primary);
+  font-size: 18px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.tileCheck span {
+  font-size: 18px;
+}
+
+/* ─── Floating action chip ───────────────────────────────────── */
+
+.chip {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(41, 41, 41, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  padding: 4px 6px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.chipBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.chipBtn span {
+  font-size: 14px;
+}
+
+.chipBtn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.chipBtnDanger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.chipDivider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 2px;
+}
+
+/* ─── Mobile ─────────────────────────────────────────────────── */
+
 @media (max-width: 768px) {
-  .canvasWrapper {
+  .singleView {
     padding-bottom: 52vh;
+  }
+
+  .chip {
+    bottom: calc(52vh + 12px);
+  }
+
+  .grid {
+    padding: var(--space-4);
+    gap: 8px;
+  }
+
+  .tileImgWrap {
+    width: 140px;
+    height: 105px;
+  }
+
+  .tileLabel {
+    max-width: 140px;
   }
 }

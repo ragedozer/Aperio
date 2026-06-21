@@ -25,6 +25,7 @@ export function AdjustmentSlider({ label, value, min, max, onChange }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const rawValue = useRef(value);
   const totalMovement = useRef(0); // total pixels traveled this drag — guards the magnetic snap
+  const lastClientX = useRef(0);
 
   const step = max <= 3 ? 0.1 : 1;
   const decimals = step < 1 ? 1 : 0;
@@ -38,14 +39,17 @@ export function AdjustmentSlider({ label, value, min, max, onChange }: Props) {
     e.currentTarget.setPointerCapture(e.pointerId);
     rawValue.current = value;
     totalMovement.current = 0;
+    lastClientX.current = e.clientX;
     setIsDragging(true);
   }, [value]);
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.buttons) return;
-    totalMovement.current += Math.abs(e.movementX);
+    const dx = e.clientX - lastClientX.current;
+    lastClientX.current = e.clientX;
+    totalMovement.current += Math.abs(dx);
     const sensitivity = e.shiftKey ? pixelsPerUnit * 10 : pixelsPerUnit;
-    rawValue.current = Math.max(min, Math.min(max, rawValue.current + e.movementX / sensitivity));
+    rawValue.current = Math.max(min, Math.min(max, rawValue.current + dx / sensitivity));
     const snapped = parseFloat((Math.round(rawValue.current / step) * step).toFixed(decimals));
     onChange(snapped);
   }, [min, max, step, decimals, pixelsPerUnit, onChange]);

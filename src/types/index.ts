@@ -56,4 +56,15 @@ export interface Preset {
   createdAt: number;
 }
 
+export interface ImageRecord {
+  id: string;
+  filePath: string;
+  originalImage: ImageData;
+  previewImage: ImageData;
+  displayImage: ImageData | null;
+  adjustments: Adjustments;
+  history: Adjustments[];
+  historyIndex: number;
+}
+
 export type ActivePanel = "adjustments" | "presets";

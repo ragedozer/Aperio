@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useEditorStore } from "../../store/editorStore";
+import { useEditorStore, selectFocusedImage } from "../../store/editorStore";
 import styles from "./Histogram.module.css";
 
 function drawChannel(
@@ -25,9 +25,8 @@ function drawChannel(
 
 export function Histogram() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { displayImage, originalImage } = useEditorStore();
-
-  const source = displayImage ?? originalImage;
+  const focused = useEditorStore(selectFocusedImage);
+  const source = focused?.displayImage ?? focused?.previewImage ?? null;
 
   useEffect(() => {
     const canvas = canvasRef.current;

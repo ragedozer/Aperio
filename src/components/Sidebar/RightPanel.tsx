@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useEditorStore } from "../../store/editorStore";
+import { useEditorStore, selectFocusedImage } from "../../store/editorStore";
 import { AdjustmentSlider } from "../Sliders/AdjustmentSlider";
 import { Histogram } from "../Histogram/Histogram";
 import { ADJUSTMENT_RANGES, Adjustments } from "../../types";
@@ -237,7 +237,10 @@ const COLLAPSED_H = 80; // handle (32px) + tabs row (48px)
 const EXPANDED_H = "52vh";
 
 export function RightPanel() {
-  const { adjustments, setAdjustment, activePanel, setActivePanel } = useEditorStore();
+  const focused = useEditorStore(selectFocusedImage);
+  const selectedCount = useEditorStore((s) => s.selectedImageIds.length);
+  const { setAdjustment, activePanel, setActivePanel } = useEditorStore();
+  const adjustments = focused?.adjustments ?? null;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches
@@ -310,7 +313,14 @@ export function RightPanel() {
             transition={{ duration: 0.14, ease: "easeOut" }}
             style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}
           >
-            {activePanel === "adjustments" &&
+            {activePanel === "adjustments" && selectedCount > 1 && (
+              <div className={styles.batchBadge}>
+                <span className="material-symbols-rounded" style={{ fontSize: 13 }}>photo_library</span>
+                Editing {selectedCount} images
+              </div>
+            )}
+
+            {activePanel === "adjustments" && adjustments &&
               ADJUSTMENT_GROUPS.map((group, gi) => (
                 <AdjustmentSection
                   key={group.label}

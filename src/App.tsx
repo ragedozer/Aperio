@@ -14,10 +14,11 @@ function AppInner() {
   useImageProcessor();
   usePresetPersistence();
 
-  const { undo, redo, resetAdjustments, setShowOriginal, setOriginalImage } =
+  const { undo, redo, resetAdjustments, setShowOriginal, addImage, clearImages } =
     useEditorStore();
   const { handleExport } = useExport();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const openModeRef = useRef<"replace" | "append">("replace");
 
   const loadFile = useCallback((file: File) => {
     const url = URL.createObjectURL(file);
@@ -34,23 +35,31 @@ function AppInner() {
       const previewCanvas = document.createElement("canvas");
       const preview = scaleForPreview(previewCanvas, img);
 
-      setOriginalImage(original, preview, file.name);
+      addImage(original, preview, file.name);
       URL.revokeObjectURL(url);
     };
     img.src = url;
-  }, [setOriginalImage]);
+  }, [addImage]);
 
   const handleOpen = useCallback(() => {
+    openModeRef.current = "replace";
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleAdd = useCallback(() => {
+    openModeRef.current = "append";
     fileInputRef.current?.click();
   }, []);
 
   const onFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) loadFile(file);
+      const files = Array.from(e.target.files ?? []);
+      if (files.length === 0) return;
+      if (openModeRef.current === "replace") clearImages();
+      files.forEach(loadFile);
       e.target.value = "";
     },
-    [loadFile]
+    [loadFile, clearImages]
   );
 
   useEffect(() => {
@@ -80,13 +89,14 @@ function AppInner() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         style={{ display: "none" }}
         onChange={onFileChange}
       />
       {/* Canvas fills the full background */}
       <Canvas />
       {/* Panels and toolbar float above */}
-      <Toolbar onOpen={handleOpen} />
+      <Toolbar onOpen={handleOpen} onAdd={handleAdd} />
       <LeftPanel />
       <RightPanel />
     </div>

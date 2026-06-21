@@ -1,9 +1,11 @@
 import { useCallback } from "react";
-import { useEditorStore } from "../store/editorStore";
-import { Adjustments } from "../types";
+import { useEditorStore, selectFocusedImage } from "../store/editorStore";
+import { Adjustments, DEFAULT_ADJUSTMENTS } from "../types";
 
 export function useAdjustments() {
-  const { adjustments, setAdjustment, resetAdjustments } = useEditorStore();
+  const focused = useEditorStore(selectFocusedImage);
+  const { setAdjustment, resetAdjustments } = useEditorStore();
+  const adjustments = focused?.adjustments ?? { ...DEFAULT_ADJUSTMENTS };
 
   const set = useCallback(
     (key: keyof Adjustments, value: number) => setAdjustment(key, value),

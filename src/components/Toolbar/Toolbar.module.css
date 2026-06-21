@@ -73,6 +73,19 @@
   box-shadow: 0 0 12px rgba(243, 255, 0, 0.5), 0 0 24px rgba(243, 255, 0, 0.22);
 }
 
+/* Add */
+.btnAdd {
+  background: rgba(53, 53, 53, 0.6);
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}
+
+.btnAdd:hover {
+  background: #444;
+  color: #ccc;
+  border-color: var(--btn-stroke);
+}
+
 /* Export */
 .btnExport {
   background: rgba(151, 75, 239, 0.15);
@@ -89,6 +102,75 @@
 .btnExport:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Export dropdown */
+.exportWrap {
+  position: relative;
+}
+
+.btnExportOpen {
+  background: rgba(151, 75, 239, 0.3) !important;
+}
+
+.exportMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 196px;
+  background: rgba(33, 33, 33, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exportMenuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+.exportMenuItem span.material-symbols-rounded {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.exportMenuItem:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.exportMenuItem:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.exportCount {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
 }
 
 /* ── Mobile ─────────────────────────────────────────────── */
