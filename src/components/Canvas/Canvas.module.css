@@ -18,7 +18,7 @@
   justify-content: center;
   background: var(--surface-base);
   touch-action: none;
-  overflow: auto;
+  overflow: hidden;
 }
 
 /* Single-image view fills the wrapper and owns all pan/zoom events */
@@ -73,6 +73,21 @@
 }
 
 /* ─── Grid ───────────────────────────────────────────────────── */
+
+/* Full-viewport pan/zoom stage — mirrors .singleView */
+.gridWrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Transformable content layer — JS writes translate + scale via inline style */
+.gridContent {
+  transform-origin: center center;
+}
 
 .grid {
   display: grid;

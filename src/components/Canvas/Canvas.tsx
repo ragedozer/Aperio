@@ -354,57 +354,187 @@ function GridView({
   onSelect: (id: string, additive: boolean) => void;
   onReorder: (fromId: string, toId: string) => void;
 }) {
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const pendingRef = useRef<{ fromId: string; startX: number; startY: number } | null>(null);
-  const suppressClickRef = useRef(false);
+  // ─── Tile size (responsive) ─────────────────────────────────────────────
   const [tileH, setTileH] = useState(() => window.innerWidth <= 768 ? 130 : 200);
-
   useEffect(() => {
     const onResize = () => setTileH(window.innerWidth <= 768 ? 130 : 200);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // ─── Pan / zoom ─────────────────────────────────────────────────────────
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
+  const [zoom, setZoom] = useState<number | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+
+  const zoomRef = useRef(zoom);
+  const fitScaleRef = useRef(fitScale);
+  const offsetRef = useRef(offset);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { fitScaleRef.current = fitScale; }, [fitScale]);
+  useEffect(() => { offsetRef.current = offset; }, [offset]);
+
+  const recomputeFit = useCallback(() => {
+    const wrapper = wrapperRef.current;
+    const content = contentRef.current;
+    if (!wrapper || !content) return;
+    const ww = wrapper.clientWidth;
+    const wh = wrapper.clientHeight;
+    const gw = content.offsetWidth;
+    const gh = content.offsetHeight;
+    if (!gw || !gh) return;
+    setFitScale(Math.min(ww / gw, wh / gh, 1));
+  }, []);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const content = contentRef.current;
+    if (!wrapper || !content) return;
+    const obs = new ResizeObserver(recomputeFit);
+    obs.observe(wrapper);
+    obs.observe(content);
+    recomputeFit();
+    return () => obs.disconnect();
+  }, [recomputeFit]);
+
+  // Reset view when the image set changes
+  useEffect(() => {
+    setZoom(null);
+    setOffset({ x: 0, y: 0 });
+  }, [images.length]);
+
+  // Wheel zoom toward cursor
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const current = zoomRef.current ?? fitScaleRef.current;
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      const newScale = Math.max(0.05, Math.min(current * factor, 10));
+      const ratio = newScale / current;
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left - rect.width / 2;
+      const cy = e.clientY - rect.top - rect.height / 2;
+      const prev = offsetRef.current;
+      setZoom(newScale);
+      setOffset({ x: cx - (cx - prev.x) * ratio, y: cy - (cy - prev.y) * ratio });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Space = fit / reset
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === " ") { e.preventDefault(); setZoom(null); setOffset({ x: 0, y: 0 }); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Touch pan + pinch zoom
+  const lastTapTime = useRef(0);
+  const pinchStart = useRef<{ dist: number; scale: number; ox: number; oy: number; mx: number; my: number } | null>(null);
+  const touchPanStart = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    function dist(t: TouchList) {
+      const dx = t[1].clientX - t[0].clientX, dy = t[1].clientY - t[0].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    function onTouchStart(e: TouchEvent) {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapTime.current < 300) { setZoom(null); setOffset({ x: 0, y: 0 }); }
+        lastTapTime.current = now;
+        touchPanStart.current = { px: e.touches[0].clientX, py: e.touches[0].clientY, ox: offsetRef.current.x, oy: offsetRef.current.y };
+        pinchStart.current = null;
+      } else if (e.touches.length === 2) {
+        touchPanStart.current = null;
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        pinchStart.current = { dist: dist(e.touches), scale: zoomRef.current ?? fitScaleRef.current, ox: offsetRef.current.x, oy: offsetRef.current.y, mx, my };
+      }
+    }
+    function onTouchMove(e: TouchEvent) {
+      e.preventDefault();
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (e.touches.length === 1 && touchPanStart.current) {
+        setOffset({ x: touchPanStart.current.ox + e.touches[0].clientX - touchPanStart.current.px, y: touchPanStart.current.oy + e.touches[0].clientY - touchPanStart.current.py });
+      } else if (e.touches.length === 2 && pinchStart.current) {
+        const ratio = dist(e.touches) / pinchStart.current.dist;
+        const newScale = Math.max(0.05, Math.min(pinchStart.current.scale * ratio, 10));
+        const sr = newScale / pinchStart.current.scale;
+        const cx = pinchStart.current.mx - rect.left - rect.width / 2;
+        const cy = pinchStart.current.my - rect.top - rect.height / 2;
+        setZoom(newScale);
+        setOffset({ x: cx - (cx - pinchStart.current.ox) * sr, y: cy - (cy - pinchStart.current.oy) * sr });
+      }
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (e.touches.length === 0) { touchPanStart.current = null; pinchStart.current = null; }
+      else if (e.touches.length === 1) { pinchStart.current = null; touchPanStart.current = { px: e.touches[0].clientX, py: e.touches[0].clientY, ox: offsetRef.current.x, oy: offsetRef.current.y }; }
+    }
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: false });
+    return () => { el.removeEventListener("touchstart", onTouchStart); el.removeEventListener("touchmove", onTouchMove); el.removeEventListener("touchend", onTouchEnd); };
+  }, []);
+
+  // ─── Tile drag-to-reorder ───────────────────────────────────────────────
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const pendingRef = useRef<{ fromId: string; startX: number; startY: number } | null>(null);
+  const suppressClickRef = useRef(false);
+  const panStart = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+
   const handleDragStart = useCallback((fromId: string, x: number, y: number) => {
     pendingRef.current = { fromId, startX: x, startY: y };
   }, []);
 
   const handleSelect = useCallback((id: string, additive: boolean) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
+    if (suppressClickRef.current) { suppressClickRef.current = false; return; }
     onSelect(id, additive);
   }, [onSelect]);
 
   const findDropId = useCallback((x: number, y: number, fromId: string): string | null => {
-    const els = document.elementsFromPoint(x, y);
-    for (const el of els) {
+    for (const el of document.elementsFromPoint(x, y)) {
       const tile = (el as HTMLElement).closest?.("[data-tile-id]") as HTMLElement | null;
-      if (tile) {
-        const id = tile.getAttribute("data-tile-id");
-        if (id && id !== fromId) return id;
-      }
+      if (tile) { const id = tile.getAttribute("data-tile-id"); if (id && id !== fromId) return id; }
     }
     return null;
   }, []);
 
+  // Unified pointer move: tile reorder takes priority, otherwise pan
   const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === "touch") return;
     const pending = pendingRef.current;
-    if (!pending) return;
-
-    const dx = e.clientX - pending.startX;
-    const dy = e.clientY - pending.startY;
-
-    if (!drag && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
-
-    setDrag({
-      fromId: pending.fromId,
-      dropId: findDropId(e.clientX, e.clientY, pending.fromId),
-      x: e.clientX,
-      y: e.clientY,
-    });
+    if (pending) {
+      const dx = e.clientX - pending.startX, dy = e.clientY - pending.startY;
+      if (!drag && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+      setDrag({ fromId: pending.fromId, dropId: findDropId(e.clientX, e.clientY, pending.fromId), x: e.clientX, y: e.clientY });
+      return;
+    }
+    if (panStart.current) {
+      setOffset({ x: panStart.current.ox + e.clientX - panStart.current.px, y: panStart.current.oy + e.clientY - panStart.current.py });
+    }
   }, [drag, findDropId]);
+
+  // Wrapper pointerdown: only pan if no tile drag is pending (tile fires first)
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") return;
+    if (pendingRef.current) return; // tile drag takes priority
+    e.currentTarget.setPointerCapture(e.pointerId);
+    panStart.current = { px: e.clientX, py: e.clientY, ox: offsetRef.current.x, oy: offsetRef.current.y };
+    setIsPanning(true);
+  }, []);
 
   const onPointerUp = useCallback(() => {
     if (drag) {
@@ -413,35 +543,50 @@ function GridView({
     }
     setDrag(null);
     pendingRef.current = null;
+    panStart.current = null;
+    setIsPanning(false);
   }, [drag, onReorder]);
 
+  const effectiveScale = zoom ?? fitScale;
   const cols = Math.ceil(Math.sqrt(images.length));
   const draggingImage = drag ? images.find((img) => img.id === drag.fromId) : null;
 
   return (
     <div
-      className={styles.grid}
-      style={{ gridTemplateColumns: `repeat(${cols}, auto)`, cursor: drag ? "grabbing" : "default" }}
+      ref={wrapperRef}
+      className={styles.gridWrapper}
+      style={{ cursor: drag || isPanning ? "grabbing" : "grab" }}
+      onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
     >
-      {images.map((img) => (
-        <ImageTile
-          key={img.id}
-          image={img}
-          isSelected={selectedImageIds.includes(img.id)}
-          isDragging={drag?.fromId === img.id}
-          isDropTarget={drag?.dropId === img.id}
-          onSelect={handleSelect}
-          onDragStart={handleDragStart}
-          tileH={tileH}
-        />
-      ))}
+      <div
+        ref={contentRef}
+        className={styles.gridContent}
+        style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${effectiveScale})` }}
+      >
+        <div className={styles.grid} style={{ gridTemplateColumns: `repeat(${cols}, auto)` }}>
+          {images.map((img) => (
+            <ImageTile
+              key={img.id}
+              image={img}
+              isSelected={selectedImageIds.includes(img.id)}
+              isDragging={drag?.fromId === img.id}
+              isDropTarget={drag?.dropId === img.id}
+              onSelect={handleSelect}
+              onDragStart={handleDragStart}
+              tileH={tileH}
+            />
+          ))}
+        </div>
+      </div>
 
       {drag && draggingImage && (
         <DragGhost image={draggingImage} x={drag.x} y={drag.y} tileH={tileH} />
       )}
+
+      <span className={styles.zoomBadge}>{Math.round(effectiveScale * 100)}%</span>
     </div>
   );
 }
