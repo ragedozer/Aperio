@@ -444,15 +444,15 @@ function GridView({
 // ─── Floating action chip ───────────────────────────────────────────────────
 
 function ActionChip() {
-  const { images, selectedImageIds, copiedAdjustments, removeImages, copyAdjustments, pasteAdjustments } =
+  const { images, selectedImageIds, copiedAdjustments, removeImages, copyAdjustments, pasteAdjustments, bottomSheetCollapsed } =
     useEditorStore();
 
-  if (selectedImageIds.length === 0 || images.length === 0) return null;
+  if (images.length <= 1 || selectedImageIds.length === 0) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        className={styles.chip}
+        className={`${styles.chip} ${bottomSheetCollapsed ? styles.chipCollapsed : ""}`}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 8 }}

@@ -173,7 +173,7 @@
 /* ─── Floating action chip ───────────────────────────────────── */
 
 .chip {
-  position: absolute;
+  position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
@@ -240,6 +240,11 @@
     right: var(--space-4);
     transform: none;
     justify-content: center;
+  }
+
+  /* Sheet is collapsed — sit just above the 32px handle */
+  .chipCollapsed {
+    bottom: calc(32px + 12px);
   }
 
   .grid {

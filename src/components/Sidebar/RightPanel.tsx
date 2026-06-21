@@ -233,15 +233,23 @@ function Chevron() {
   );
 }
 
-const COLLAPSED_H = 80; // handle (32px) + tabs row (48px)
+const COLLAPSED_H = 32; // handle only
 const EXPANDED_H = "52vh";
 
 export function RightPanel() {
   const focused = useEditorStore(selectFocusedImage);
   const selectedCount = useEditorStore((s) => s.selectedImageIds.length);
-  const { setAdjustment, activePanel, setActivePanel } = useEditorStore();
+  const { setAdjustment, activePanel, setActivePanel, setBottomSheetCollapsed } = useEditorStore();
   const adjustments = focused?.adjustments ?? null;
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const toggleCollapsed = () => {
+    setIsCollapsed((c) => {
+      const next = !c;
+      setBottomSheetCollapsed(next);
+      return next;
+    });
+  };
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches
   );
@@ -253,7 +261,7 @@ export function RightPanel() {
       setIsMobile(e.matches);
       if (!e.matches) {
         setIsCollapsed(false);
-        // Clear inline height Framer Motion set during mobile so CSS top/bottom takes over
+        setBottomSheetCollapsed(false);
         if (panelRef.current) panelRef.current.style.height = "";
       }
     };
@@ -278,7 +286,7 @@ export function RightPanel() {
       {/* Collapse handle — visible on mobile only via CSS */}
       <button
         className={styles.handle}
-        onClick={() => setIsCollapsed((c) => !c)}
+        onClick={toggleCollapsed}
         aria-label={isCollapsed ? "Expand panel" : "Collapse panel"}
       >
         <motion.span

@@ -34,9 +34,11 @@ interface EditorStore {
   isProcessing: boolean;
   showOriginal: boolean;
   activePanel: "adjustments" | "presets";
+  bottomSheetCollapsed: boolean;
   setActivePanel: (panel: "adjustments" | "presets") => void;
   setShowOriginal: (show: boolean) => void;
   setIsProcessing: (processing: boolean) => void;
+  setBottomSheetCollapsed: (collapsed: boolean) => void;
 
   // Presets
   presets: Preset[];
@@ -250,10 +252,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   isProcessing: false,
   showOriginal: false,
   activePanel: "adjustments",
+  bottomSheetCollapsed: false,
 
   setActivePanel: (panel) => set({ activePanel: panel }),
   setShowOriginal: (show) => set({ showOriginal: show }),
   setIsProcessing: (processing) => set({ isProcessing: processing }),
+  setBottomSheetCollapsed: (collapsed) => set({ bottomSheetCollapsed: collapsed }),
 
   presets: [],
 
