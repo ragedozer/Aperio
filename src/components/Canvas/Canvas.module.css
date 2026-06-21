@@ -272,6 +272,16 @@
 
   .grid {
     padding: var(--space-4);
-    gap: 10px;
+    gap: 18px;
+  }
+
+  /* Thicker selection ring on mobile */
+  .tileImgWrap {
+    border-width: 3px;
+  }
+
+  /* Bigger selection checkmark on mobile */
+  .tileCheck span {
+    font-size: 26px;
   }
 }

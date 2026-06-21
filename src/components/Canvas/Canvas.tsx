@@ -285,6 +285,7 @@ function ImageTile({
   onDragStart: (id: string, x: number, y: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lastPointerTypeRef = useRef<string>("mouse");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -306,7 +307,8 @@ function ImageTile({
     <motion.div
       data-tile-id={image.id}
       className={cls}
-      onClick={(e) => onSelect(image.id, e.ctrlKey || e.metaKey || e.shiftKey)}
+      onPointerUp={(e) => { lastPointerTypeRef.current = e.pointerType; }}
+      onClick={(e) => onSelect(image.id, e.ctrlKey || e.metaKey || e.shiftKey || lastPointerTypeRef.current === "touch")}
       onPointerDown={(e) => onDragStart(image.id, e.clientX, e.clientY)}
       initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: isDragging ? 0.35 : 1, scale: 1 }}
