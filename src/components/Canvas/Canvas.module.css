@@ -76,98 +76,101 @@
 
 .grid {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   padding: var(--space-6);
+  align-items: start;
   /* grid-template-columns set via inline style */
 }
 
+/* Tile: no card box — just a transparent hit-target */
 .tile {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  background: var(--surface-raised);
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
   cursor: pointer;
   user-select: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.tile:hover {
-  border-color: var(--surface-hover);
-}
-
-.tileSelected {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.tileImgWrap {
-  width: 220px;
-  height: 165px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--surface-base);
-}
-
-.tileCanvas {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: var(--radius-sm);
-}
-
-.tileLabel {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: "JetBrains Mono", monospace;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tileDragging {
   pointer-events: none;
 }
 
-.tileDropTarget {
-  border-color: var(--accent-primary) !important;
-  background: var(--accent-subtle);
-  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.4);
+/* Image wrapper: selection ring lives here */
+.tileImgWrap {
+  position: relative;
+  display: inline-block;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
+.tile:hover .tileImgWrap {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.tileSelected .tileImgWrap {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tileDropTarget .tileImgWrap {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 2px var(--accent-glow), inset 0 0 0 9999px var(--accent-subtle);
+}
+
+/* Canvas — JS sets intrinsic pixel dimensions */
+.tileCanvas {
+  display: block;
+}
+
+/* Filename overlay — gradient fade, shown on hover */
+.tileLabel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px var(--space-2) var(--space-1);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.tile:hover .tileLabel {
+  opacity: 1;
+}
+
+/* Selection checkmark */
+.tileCheck {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  color: var(--accent-primary);
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+}
+
+.tileCheck span {
+  font-size: 18px;
+}
+
+/* Drag ghost: just the image, slightly rotated */
 .dragGhost {
   position: fixed;
   pointer-events: none;
   z-index: 9999;
   transform: translate(-50%, -50%) rotate(2deg) scale(0.95);
   opacity: 0.85;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--surface-raised);
-  padding: var(--space-2);
-}
-
-.tileCheck {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  color: var(--accent-primary);
-  font-size: 18px;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.tileCheck span {
-  font-size: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
 
 /* ─── Floating action chip ───────────────────────────────────── */
@@ -254,15 +257,6 @@
 
   .grid {
     padding: var(--space-4);
-    gap: 8px;
-  }
-
-  .tileImgWrap {
-    width: 140px;
-    height: 105px;
-  }
-
-  .tileLabel {
-    max-width: 140px;
+    gap: 10px;
   }
 }

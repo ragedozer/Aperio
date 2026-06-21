@@ -245,12 +245,11 @@ function SingleImageView() {
 
 // ─── Grid view ──────────────────────────────────────────────────────────────
 
-const TILE_W = 220;
-const TILE_H = 165;
+const TILE_MAX_W = 360;
 const DRAG_THRESHOLD = 8;
 
-function drawThumbnail(canvas: HTMLCanvasElement, src: ImageData) {
-  const scale = Math.min(TILE_W / src.width, TILE_H / src.height);
+function drawThumbnail(canvas: HTMLCanvasElement, src: ImageData, tileH: number) {
+  const scale = Math.min(tileH / src.height, TILE_MAX_W / src.width);
   const w = Math.max(1, Math.round(src.width * scale));
   const h = Math.max(1, Math.round(src.height * scale));
   canvas.width = w;
@@ -269,6 +268,7 @@ function ImageTile({
   isDropTarget,
   onSelect,
   onDragStart,
+  tileH,
 }: {
   image: ImageRecord;
   isSelected: boolean;
@@ -276,6 +276,7 @@ function ImageTile({
   isDropTarget: boolean;
   onSelect: (id: string, additive: boolean) => void;
   onDragStart: (id: string, x: number, y: number) => void;
+  tileH: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -283,8 +284,8 @@ function ImageTile({
     const canvas = canvasRef.current;
     const src = image.displayImage ?? image.previewImage;
     if (!canvas || !src) return;
-    drawThumbnail(canvas, src);
-  }, [image.displayImage, image.previewImage]);
+    drawThumbnail(canvas, src, tileH);
+  }, [image.displayImage, image.previewImage, tileH]);
 
   const name = image.filePath.split(/[/\\]/).pop() ?? image.filePath;
 
@@ -307,35 +308,30 @@ function ImageTile({
     >
       <div className={styles.tileImgWrap}>
         <canvas ref={canvasRef} className={styles.tileCanvas} />
+        <span className={styles.tileLabel}>{name}</span>
+        {isSelected && !isDragging && (
+          <div className={styles.tileCheck}>
+            <span className="material-symbols-rounded">check_circle</span>
+          </div>
+        )}
       </div>
-      <span className={styles.tileLabel}>{name}</span>
-      {isSelected && !isDragging && (
-        <div className={styles.tileCheck}>
-          <span className="material-symbols-rounded">check_circle</span>
-        </div>
-      )}
     </motion.div>
   );
 }
 
-function DragGhost({ image, x, y }: { image: ImageRecord; x: number; y: number }) {
+function DragGhost({ image, x, y, tileH }: { image: ImageRecord; x: number; y: number; tileH: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const src = image.displayImage ?? image.previewImage;
     if (!canvas || !src) return;
-    drawThumbnail(canvas, src);
-  }, [image.displayImage, image.previewImage]);
+    drawThumbnail(canvas, src, tileH);
+  }, [image.displayImage, image.previewImage, tileH]);
 
   return (
-    <div
-      className={styles.dragGhost}
-      style={{ left: x, top: y }}
-    >
-      <div className={styles.tileImgWrap}>
-        <canvas ref={canvasRef} className={styles.tileCanvas} />
-      </div>
+    <div className={styles.dragGhost} style={{ left: x, top: y }}>
+      <canvas ref={canvasRef} className={styles.tileCanvas} />
     </div>
   );
 }
@@ -361,6 +357,13 @@ function GridView({
   const [drag, setDrag] = useState<DragState | null>(null);
   const pendingRef = useRef<{ fromId: string; startX: number; startY: number } | null>(null);
   const suppressClickRef = useRef(false);
+  const [tileH, setTileH] = useState(() => window.innerWidth <= 768 ? 130 : 200);
+
+  useEffect(() => {
+    const onResize = () => setTileH(window.innerWidth <= 768 ? 130 : 200);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const handleDragStart = useCallback((fromId: string, x: number, y: number) => {
     pendingRef.current = { fromId, startX: x, startY: y };
@@ -432,11 +435,12 @@ function GridView({
           isDropTarget={drag?.dropId === img.id}
           onSelect={handleSelect}
           onDragStart={handleDragStart}
+          tileH={tileH}
         />
       ))}
 
       {drag && draggingImage && (
-        <DragGhost image={draggingImage} x={drag.x} y={drag.y} />
+        <DragGhost image={draggingImage} x={drag.x} y={drag.y} tileH={tileH} />
       )}
     </div>
   );
