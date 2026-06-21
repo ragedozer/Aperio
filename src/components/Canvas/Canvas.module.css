@@ -282,6 +282,6 @@
 
   /* Bigger selection checkmark on mobile */
   .tileCheck span {
-    font-size: 26px;
+    font-size: 52px;
   }
 }
