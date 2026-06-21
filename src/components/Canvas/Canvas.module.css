@@ -123,7 +123,7 @@
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-.tileSelected .tileImgWrap {
+.tile.tileSelected .tileImgWrap {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 24px rgba(0, 0, 0, 0.5);
 }
