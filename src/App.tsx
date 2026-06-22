@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Toolbar } from "./components/Toolbar/Toolbar";
 import { LeftPanel } from "./components/Sidebar/LeftPanel";
 import { Canvas } from "./components/Canvas/Canvas";
@@ -19,6 +19,8 @@ function AppInner() {
   const { handleExport } = useExport();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openModeRef = useRef<"replace" | "append">("replace");
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const loadFile = useCallback((file: File) => {
     const url = URL.createObjectURL(file);
@@ -62,6 +64,34 @@ function AppInner() {
     [loadFile, clearImages]
   );
 
+  const onDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.types.includes("Files")) setIsDragOver(true);
+  }, []);
+
+  const onDragLeave = useCallback(() => {
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) setIsDragOver(false);
+  }, []);
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+      const files = Array.from(e.dataTransfer.files).filter((f) =>
+        f.type.startsWith("image/")
+      );
+      files.forEach(loadFile);
+    },
+    [loadFile]
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
@@ -84,7 +114,13 @@ function AppInner() {
   }, [handleOpen, handleExport, undo, redo, resetAdjustments, setShowOriginal]);
 
   return (
-    <div className={styles.app}>
+    <div
+      className={styles.app}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -99,6 +135,14 @@ function AppInner() {
       <Toolbar onOpen={handleOpen} onAdd={handleAdd} />
       <LeftPanel />
       <RightPanel />
+      {isDragOver && (
+        <div className={styles.dropOverlay}>
+          <div className={styles.dropBox}>
+            <span className="material-symbols-rounded" style={{ fontSize: 40 }}>add_photo_alternate</span>
+            <span>Drop to add photos</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

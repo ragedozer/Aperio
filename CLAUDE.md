@@ -5,7 +5,7 @@
 
 ## Project Overview
 
-Aperio is a free, lightweight browser-based photo editor built with **React + TypeScript**, deployed on Vercel. It provides standard darkroom adjustments with a distinctive floating-panel UI. No AI features, no subscriptions, no login — just a clean editor for non-Adobe users.
+Aperio is a free, lightweight browser-based photo editor built with **React + TypeScript**, deployed on Vercel. It provides standard darkroom adjustments with a distinctive floating-panel UI, multi-image canvas with pan/zoom, and batch editing. No AI features, no subscriptions, no login — just a clean editor for non-Adobe users.
 
 Originally scaffolded as a Tauri v2 desktop app (codename "Lumina"), it was fully converted to a pure web app. All Tauri/Rust code has been removed.
 
@@ -31,20 +31,40 @@ Originally scaffolded as a Tauri v2 desktop app (codename "Lumina"), it was full
 
 All core editing features are working and deployed.
 
+### Single-image editing
 - **Floating layout** — Toolbar centered at top, LeftPanel (240px) floats left, RightPanel (280px) floats right, Canvas fills full background
-- **Mobile responsive** — Bottom sheet panel (collapsed/expanded), toolbar centered, LeftPanel hidden on mobile
-- **Frosted glass panels** — `backdrop-filter: blur(16px)` on panels and toolbar buttons
 - **13 adjustment sliders** across three collapsible groups (Light / Color / Detail)
-- **Custom AdjustmentSlider** — pill track, accent fill, dragging tooltip showing live value
+- **Custom AdjustmentSlider** — pill track, accent fill, dragging tooltip showing live value; track-width-based sensitivity for correct mobile feel
 - **Live Histogram** — RGB channel overlay drawn on a canvas element
-- **Zustand store** — image, adjustments, history stack (capped at 100), undo/redo, presets
 - **Full image processing pipeline** — all 13 adjustments in `src/lib/imageProcessor.ts`; runs in a Web Worker
-- **Export** — Ctrl+E / toolbar button; full-res pipeline; always exports as PNG with `-edited` suffix via `<a download>`
-- **File I/O** — open via `<input type="file">` + File API; save via `canvas.toBlob()` + object URL download
-- **Keyboard shortcuts** — Ctrl+O, Ctrl+Z/Shift+Z, Ctrl+Shift+R, Ctrl+E, Space, backtick — all working
+- **Canvas pan & zoom** — fit-to-canvas on load and Space; scroll to zoom; click-drag to pan; zoom % badge; clamp keeps image at least 80px visible
 - **History panel** — click any entry to revert; labels show which slider changed and by how much
 - **Presets** — save / apply / delete; export to JSON file; import from JSON file; persisted in `localStorage`
-- **Canvas pan & zoom** — fit-to-canvas on load and Space; scroll to zoom; click-drag to pan; zoom % badge; clamp keeps image at least 80px visible
+- **Export** — Ctrl+E / toolbar button; full-res pipeline; exports as PNG with `-edited` suffix via `<a download>`
+- **Keyboard shortcuts** — Ctrl+O, Ctrl+Z/Shift+Z, Ctrl+Shift+R, Ctrl+E, Space, backtick — all working
+
+### Multi-image canvas (Grid view)
+- **Open multiple images** — Open replaces canvas; Add appends to existing session
+- **Zoomable, pannable grid** — scroll to zoom, drag to pan, pinch on touch, Space to fit; same pan/zoom system as single-image view
+- **Images at natural preview size** — tiles render at up to 1200px longest edge; `fitScale` via ResizeObserver zooms to fit on load
+- **Image selection** — click to select; Ctrl/Shift+click on desktop for multi-select; tap on mobile is always additive (toggles in/out)
+- **Drag-to-reorder tiles** — pointer drag with ghost image; drop target highlighted with accent border
+- **Batch editing** — sliders and presets apply simultaneously to all selected images; batch badge shown in panel
+- **Copy/Paste adjustments** — copy settings from one image, paste to all selected images via ActionChip
+- **ActionChip** — floating "Remove / Copy Settings / Paste" pill rendered via React Portal; centered via full-width fixed row; hidden when ≤1 image or nothing selected; repositions when mobile panel collapses
+- **Export dropdown** — "Export Selected (N)" and "Export All (N)"; plain Export button when only one image
+
+### Mobile
+- **Bottom sheet panel** — collapse/expand via chevron handle; fully collapses to 32px handle only
+- **Two-row toolbar** — Undo/Redo/Reset on row 1; Open/Add/Export on row 2 (zero-height `flex-basis: 100%` line-break div)
+- **Touch pan & zoom** — single-touch pan activates after 8px threshold (preserves tap-to-select); pinch-to-zoom; double-tap empty canvas to fit
+- **Touch multi-select** — additive by default; taps toggle images in/out of selection without modifier keys
+- **Thicker selection ring** — 3px border on mobile; 52px checkmark icon
+- **ActionChip repositions** — sits just above collapsed panel handle; rises back up when panel expands
+
+### General
+- **Frosted glass panels** — `backdrop-filter: blur(16px)` on panels and toolbar buttons
+- **File I/O** — open via `<input type="file">` + File API; export via `canvas.toBlob()` + object URL download
 - **Favicon** — `/public/Aperio_Icon.png`, plus `apple-touch-icon` for iOS
 - **TypeScript strict** — passes `tsc --noEmit` clean
 
@@ -66,27 +86,27 @@ Photo Editor - Web/
 │   └── Aperio_Logo_W.svg       # white logo used in Toolbar
 ├── src/
 │   ├── main.tsx
-│   ├── App.tsx                 # layout shell + keyboard shortcut bindings + hidden file input
+│   ├── App.tsx                 # layout shell + keyboard shortcut bindings + two hidden file inputs (open/add)
 │   ├── App.module.css
 │   ├── components/
 │   │   ├── Canvas/
-│   │   │   ├── Canvas.tsx      # draws ImageData, pan/zoom, entrance animation
+│   │   │   ├── Canvas.tsx      # SingleImageView + GridView (ImageTile, ActionChip) + empty state
 │   │   │   └── Canvas.module.css
 │   │   ├── Sidebar/
 │   │   │   ├── LeftPanel.tsx   # history list (hidden on mobile)
 │   │   │   ├── LeftPanel.module.css
-│   │   │   ├── RightPanel.tsx  # adjustment groups + histogram + presets; mobile bottom sheet
+│   │   │   ├── RightPanel.tsx  # adjustment groups + histogram + presets + batch badge; mobile bottom sheet
 │   │   │   └── RightPanel.module.css
 │   │   ├── Toolbar/
-│   │   │   ├── Toolbar.tsx     # logo + Open/Undo/Redo/Reset/Export buttons
+│   │   │   ├── Toolbar.tsx     # logo + Open/Add/Undo/Redo/Reset/Export(dropdown) buttons
 │   │   │   └── Toolbar.module.css
 │   │   ├── Sliders/
 │   │   │   └── AdjustmentSlider.tsx
 │   │   └── Histogram/
 │   │       └── Histogram.tsx
 │   ├── hooks/
-│   │   ├── useImageProcessor.ts   # connects store → pipeline via rAF + Web Worker
-│   │   ├── useExport.ts           # canvas.toBlob() → <a download> PNG export
+│   │   ├── useImageProcessor.ts   # connects store → pipeline via rAF + Web Worker (one worker per ImageRecord)
+│   │   ├── useExport.ts           # canvas.toBlob() → <a download> PNG export (selected or all)
 │   │   ├── usePresetPersistence.ts # localStorage key: aperio-presets
 │   │   ├── useAdjustments.ts
 │   │   └── useHistory.ts
@@ -100,7 +120,7 @@ Photo Editor - Web/
 │   │   ├── tokens.css
 │   │   └── global.css
 │   ├── types/
-│   │   ├── index.ts               # Adjustments, Preset, DEFAULT_ADJUSTMENTS, ADJUSTMENT_RANGES
+│   │   ├── index.ts               # Adjustments, Preset, ImageRecord, DEFAULT_ADJUSTMENTS, ADJUSTMENT_RANGES
 │   │   └── css-modules.d.ts
 │   └── vite-env.d.ts
 ├── .claude/
@@ -112,6 +132,13 @@ Photo Editor - Web/
 ├── vite.config.ts
 └── index.html
 ```
+
+### Key sub-components inside Canvas.tsx
+
+- **`SingleImageView`** — wraps the single-image canvas; owns all pan/zoom pointer events; Space resets
+- **`GridView`** — `gridWrapper` (overflow:hidden flex stage) + `gridContent` (JS-transformed layer holding the CSS grid); owns wheel + pointer + native touch events for the stage; `fitScale` computed by ResizeObserver
+- **`ImageTile`** — individual tile; handles selection click (with `lastPointerTypeRef` for additive touch select), drag-to-reorder, `suppressClickRef` to block post-drag click
+- **`ActionChip`** — "Remove / Copy Settings / Paste" pill; rendered at `document.body` via `createPortal`; reads `bottomSheetCollapsed` from store to reposition on mobile
 
 ---
 
@@ -172,24 +199,29 @@ Photo Editor - Web/
 ### Layout
 
 ```
-┌─────────────────────────────────────────────────────┐
-│         [Logo]  [Open] [Undo] [Redo] [Reset] [Export]  ← floating toolbar, centered, top: 32px
-├──────────┬──────────────────────────┬───────────────┤
-│          │                          │               │
-│ Left     │   Canvas (fills bg)      │  Right        │
-│ Panel    │   position:absolute      │  Panel        │
-│ 240px    │   inset:0                │  280px        │
-│ left:48px│                          │ right:48px    │
-│ top:180px│                          │ top:180px     │
-│          │                          │               │
-│ - History│                          │ ▾ Light       │
-│          │                          │ ▾ Color       │
-│          │                          │ ▾ Detail      │
-│          │                          │ — Histogram — │
-│          │                          │ — Presets —   │
-└──────────┴──────────────────────────┴───────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  [Logo]  [Undo] [Redo] [Reset]  [Open] [Add] [Export ▾]     ← floating toolbar, centered, top: 32px
+├──────────┬───────────────────────────────────┬───────────────┤
+│          │                                   │               │
+│ Left     │   Canvas (fills bg)               │  Right        │
+│ Panel    │   position:absolute; inset:0      │  Panel        │
+│ 240px    │                                   │  280px        │
+│ left:48px│  Single image: SingleImageView    │ right:48px    │
+│ top:180px│  Grid: GridView (gridWrapper >    │ top:180px     │
+│          │    gridContent > grid > tiles)    │               │
+│ - History│                                   │ ▾ Light       │
+│          │  [Remove | Copy Settings | Paste] │ ▾ Color       │
+│          │   ActionChip (portal, fixed)      │ ▾ Detail      │
+│          │                                   │ — Histogram — │
+│          │                                   │ — Presets —   │
+└──────────┴───────────────────────────────────┴───────────────┘
 
-Mobile (≤768px): panels collapse to bottom sheet; toolbar buttons centered; LeftPanel hidden
+Mobile (≤768px):
+  Toolbar row 1: [Undo] [Redo] [Reset]
+  Toolbar row 2: [Open] [Add] [Export]
+  RightPanel: bottom sheet, collapses to 32px handle only
+  LeftPanel: hidden
+  ActionChip: fixed bottom, tracks panel collapsed state
 ```
 
 ---
@@ -216,27 +248,37 @@ Original Pixels
 Display Canvas
 ```
 
-Preview runs on a downscaled copy (max 1200px longest edge) in a persistent Web Worker (`useImageProcessor`). Export runs the full-res pipeline in a one-shot worker (`useExport`).
+Preview runs on a downscaled copy (max 1200px longest edge) in a **persistent Web Worker per image** (`useImageProcessor`). Export runs the full-res pipeline in a one-shot worker (`useExport`).
+
+In multi-image sessions, `setAdjustment` applies the change to all `selectedImageIds`. Each `ImageRecord` has its own `history` stack and `historyIndex`.
 
 ---
 
 ## State Shape (Zustand — `src/store/editorStore.ts`)
 
 ```typescript
-interface EditorStore {
-  originalImage: ImageData | null;
+// Per-image record
+interface ImageRecord {
+  id: string;
+  filePath: string;
+  originalImage: ImageData;    // full-res, never mutated
+  previewImage: ImageData;     // downscaled to max 1200px longest edge
   displayImage: ImageData | null;
-  filePath: string | null;
-
   adjustments: Adjustments;
-  setAdjustment: (key: keyof Adjustments, value: number) => void;
-  resetAdjustments: () => void;
-
   history: Adjustments[];
   historyIndex: number;
+}
+
+interface EditorStore {
+  images: ImageRecord[];
+  selectedImageIds: string[];
+  copiedAdjustments: Adjustments | null;
+  bottomSheetCollapsed: boolean;        // tracks mobile panel state for ActionChip
+
+  setAdjustment: (key: keyof Adjustments, value: number) => void; // applies to all selectedImageIds
+  resetAdjustments: () => void;
   undo: () => void;
   redo: () => void;
-  pushHistory: (adjustments: Adjustments) => void;
 
   isProcessing: boolean;
   showOriginal: boolean;
@@ -245,8 +287,15 @@ interface EditorStore {
   setShowOriginal: (show: boolean) => void;
   setIsProcessing: (processing: boolean) => void;
 
-  setOriginalImage: (image: ImageData | null, path: string | null) => void;
-  setDisplayImage: (image: ImageData | null) => void;
+  setOriginalImage: (images: ImageRecord[]) => void;  // replaces all images
+  addImages: (images: ImageRecord[]) => void;
+  removeImages: (ids: string[]) => void;
+  reorderImages: (ids: string[]) => void;
+  setSelectedImageIds: (ids: string[]) => void;
+  setDisplayImage: (id: string, image: ImageData) => void;
+  copyAdjustments: () => void;
+  pasteAdjustments: () => void;
+  setBottomSheetCollapsed: (collapsed: boolean) => void;
 
   presets: Preset[];
   savePreset: (name: string) => void;
@@ -261,7 +310,7 @@ interface EditorStore {
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl + O` | Open image |
+| `Ctrl + O` | Open image(s) — replaces canvas |
 | `Ctrl + Z` | Undo |
 | `Ctrl + Shift + Z` | Redo |
 | `Ctrl + Shift + R` | Reset all adjustments |
@@ -311,9 +360,13 @@ git add public/Aperio_Icon.png && git commit -m "Update favicon" && git push
 
 - TypeScript strict mode always on
 - CSS Modules for component styles, global tokens in `tokens.css`
-- No inline styles except for dynamic values (slider fill width, canvas transform)
+- No inline styles except for dynamic values (slider fill width, canvas transform, grid-template-columns)
 - `useCallback` on any function passed to canvas or image processor
 - Do not use `motion.canvas` or `motion.div` with `display: contents` — Framer Motion's transform animation conflicts with raw CSS `transform` strings on the same element. Use a wrapper `motion.div` for entrance animations and a plain element for pan/zoom transforms.
+- **ActionChip centering**: render via `createPortal(chip, document.body)` + use a full-width fixed row (`left:0; right:0; display:flex; justify-content:center`) — do not use `left:50%; transform:translateX(-50%)` which is sensitive to scrollbar width
+- **Touch selection in GridView**: do NOT call `e.preventDefault()` in `touchstart` for single-touch — it cancels the native click pipeline that tile `onClick` depends on. Only `preventDefault` in `touchmove` after movement exceeds 8px threshold
+- **CSS specificity for selected-over-hover**: chain `.tile.tileSelected .tileImgWrap` (specificity 0,3,0) and place it after `.tile:hover .tileImgWrap` in source order so cascade wins; on mobile `:hover` sticks after tap and would otherwise override the selected ring
+- **Mobile panel collapse**: add `min-height: 0` in the mobile media query to override desktop `min-height: 200px`; otherwise Framer Motion cannot animate the panel to its collapsed height
 
 ---
 
@@ -325,3 +378,5 @@ git add public/Aperio_Icon.png && git commit -m "Update favicon" && git push
 - Do not use a third-party image processing library (sharp, jimp) — use Canvas API
 - Do not use inline CSS for design tokens — always use CSS variables
 - Do not use `motion.canvas` with both FM animate props and a raw `style.transform` string — they conflict; wrap in a `motion.div` instead
+- Do not call `e.preventDefault()` in `touchstart` for single-finger touch in GridView — kills tile click/selection
+- Do not add `min-height` constraints to the mobile `.panel` — it blocks Framer Motion collapse animation
